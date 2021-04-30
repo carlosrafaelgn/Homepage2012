@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Preview de Conteúdo</title>
+	<link rel="stylesheet" type="text/css" href="/main.css" />
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+		//<![CDATA[
+		"use strict";
+
+		//Uma prática muito comum: verifica se o objeto desejado existe,
+		//caso contrário, "cria" o objeto atribuindo a ele outro(s) que
+		//pode(m) existir naquele browser em especial... Dê uma olhada
+		//no exemplo do microfone para ver como essa técnica também
+		//funciona: http://carlosrafaelgn.com.br/Aula/Mic.html
+		if (!window.URL) {
+			window.URL = window.webkitURL;
+		}
+
+		var btnFile, txtFile, container, objURL;
+		function btnFile_Click() {
+			txtFile.click();
+			return true;
+		}
+		function window_Unload() {
+			return freeObjURL();
+		}
+		function freeObjURL() {
+			if (URL && objURL) {
+				//Libera a URL temporária, criada anteriormente
+				URL.revokeObjectURL(objURL);
+				objURL = null;
+			}
+			return true;
+		}
+		function prepareObjURL(file) {
+			//Libera a URL temporária, criada anteriormente
+			freeObjURL();
+			//Remove o conteúdo atual da tela
+			if (container.firstChild)
+				container.removeChild(container.firstChild);
+			//Cria uma URL temporária para representar o arquivo selecionado pelo usuário
+			objURL = URL.createObjectURL(file);
+			return true;
+		}
+		function cleanUp() {
+			btnFile.innerHTML = "Escolher arquivo...";
+			//Remove o conteúdo atual da tela
+			if (container.firstChild)
+				container.removeChild(container.firstChild);
+			//Libera a URL temporária, caso ela existia
+			freeObjURL();
+			return true;
+		}
+		function txtFile_Change() {
+			var f = txtFile.files, obj;
+			if (!f || !URL) {
+				Popup.showError("Aparentemente seu browser não possui a API necessária para acessar arquivos locais! :(");
+				return true;
+			}
+			if (!f.length)
+				return cleanUp();
+			//Obtém o arquivo selecionado
+			f = f[0];
+			//Troca o texto do botão pelo nome do arquivo
+			btnFile.innerHTML = f.name + " (...)";
+			try {
+				//Verifica qual é o tipo de arquivo selecionado pelo usuário
+				if (f.type.match("image/*")) {
+					prepareObjURL(f);
+					//Cria a imagem
+					obj = document.createElement("img");
+					obj.onload = function (e) {
+						//Altera o tamanho da imagem proporcionalmente, para que não fique maior do que 300 pixels
+						if (obj.width > obj.height) {
+							if (obj.width > 300) {
+								obj.height = (obj.height * 300 / obj.width) | 0;
+								obj.width = 300;
+							}
+						} else {
+							if (obj.height > 300) {
+								obj.width = (obj.width * 300 / obj.height) | 0;
+								obj.height = 300;
+							}
+						}
+						//Remove o conteúdo atual da tela
+						if (container.firstChild)
+							container.removeChild(container.firstChild);
+						//Mostra a imagem na tela
+						container.appendChild(obj);
+						//Libera a URL temporária, criada anteriormente
+						return freeObjURL();
+					};
+					obj.src = objURL;
+				} else if (f.type.match("audio/*")) {
+					prepareObjURL(f);
+					//Cria o áudio
+					obj = document.createElement("audio");
+					obj.controls = true;
+					obj.loop = true;
+					obj.src = objURL;
+					obj.load();
+					//Remove o conteúdo atual da tela
+					if (container.firstChild)
+						container.removeChild(container.firstChild);
+					//Mostra o player de áudio na tela
+					container.appendChild(obj);
+				} else if (f.type.match("video/*")) {
+					prepareObjURL(f);
+					//Cria o vídeo
+					obj = document.createElement("video");
+					obj.controls = true;
+					obj.loop = true;
+					obj.src = objURL;
+					obj.load();
+					//Mostra o player de vídeo na tela
+					container.appendChild(obj);
+				} else {
+					Popup.showError("Por favor, selecione uma imagem, um vídeo ou um som!");
+					return cleanUp();
+				}
+			} catch (ex) {
+				Popup.showError(ex);
+				return cleanUp();
+			}
+			return true;
+		}
+		function main() {
+			btnFile = $("btnFile");
+			txtFile = $("txtFile");
+			container = $("container");
+			attachMouse(btnFile, "click", btnFile_Click);
+			attachObserver(window, "unload", window_Unload);
+			attachObserver(txtFile, "change", txtFile_Change);
+			return true;
+		}
+		//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+	<p>Esse é um exemplo bem simples de como criar uma interface para que o usuário possa visualizar uma <b>imagem</b>, <b>vídeo</b> ou <b>som</b>, antes de realizar seu upload.</p>
+	<p>Para utilizar, basta selecionar um arquivo de seu computador, e ele será mostrado/tocado para o usuário sem a necessidade de realizar o upload do arquivo para o servidor.</p>
+	<p>Dê uma olhada no código fonte desta página para um exemplo completo de como tudo funciona, especialmente a função <span class="MONO">txtFile_Change()</span>.</p>
+	<div class="_MB4"><div class="BTN" id="btnFile">Escolher arquivo...</div><div style="width: 0px; overflow: hidden; display: inline-block;"><input id="txtFile" type="file" /></div></div>
+	<div id="container"></div>
+	<div class="SEP"></div>
+	<p>Para mais informações sobre as tecnologias utilizadas:</p>
+	<ul>
+		<li>W3C - <a href="http://www.w3.org/TR/FileAPI/">File API</a></li>
+		<li>MDN - <a href="https://developer.mozilla.org/en-US/docs/Using_files_from_web_applications">Using files from web applications</a></li>
+	</ul>
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

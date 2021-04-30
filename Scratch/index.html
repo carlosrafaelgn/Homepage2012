@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Scratch e Ferramentas</title>
+	<link rel="stylesheet" type="text/css" href="/main.css" />
+	<style type="text/css">
+	img {
+		max-width: 100%;
+	}
+	</style>
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	function main() {
+		var tab = new TabHeader("Kinect Translator", $("tab1"), "PicoBoard", $("tab2"), "Jogos de Exemplo", $("tab3"));
+		tab.replaceControl($("tab"));
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="document" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div class="COLHLDR"><div class="COL"><p>Quando comecei a dar aulas de lógica e algoritmos na faculdade, foi proposto utilizar uma ferramenta para auxiliar o aprendizado daqueles que ainda estão dando seus primeiros passos nesse mundo da programação, o <a href="http://scratch.mit.edu">Scratch</a>.</p></div><div class="COL2">
+<p>O Scratch, ferramenta desenvolvida pelo <a href="http://llk.media.mit.edu/">Lifelong Kindergarten Group</a>, grupo que faz parte do <a href="http://www.media.mit.edu/">Media Lab</a> do Massachusetts Institute of Technology, <a href="http://mit.edu/">MIT</a>, oferece um ambiente inteiramente gráfico e bem amigável, o que sempre leva os alunos a querer desenvolver jogos. Normalmente são jogos simples, mas são jogos! :)</p></div></div>
+
+<div id="tab"></div>
+
+<div class="TP" id="tab1">
+
+<h1>Introdução</h1>
+
+<div class="COLHLDR"><div class="COL"><p>Durante o <a href="http://events.scratch.mit.edu/conference/">Scratch Conference 2012</a>, fui apresentado a uma ferramenta bastante interessante, capaz de fazer a integração entre o sensor <a href="http://www.xbox.com/Kinect">Kinect</a> e o Scratch, chamada de <a href="http://scratch.saorog.com/">Kinect 2 Scratch</a>. É uma ótima ferramenta, e só resolvi desenvolver o Kinect Translator por dois motivos:<br />
+- Aparentemente o Kinect2Scratch não tem algumas opções que procurei<br />
+- Senti que o Kinect2Scratch poderia ser mais "leve" :)</p></div><div class="COL2">
+<p>O Kinect Translator conecta-se ao Scratch através de uma conexão TCP/IP pela porta 42001, e só foi possível graças ao <a href="http://scratch.mit.edu/forums/viewtopic.php?id=9458">protocolo de rede</a> aberto implementado pelo Scratch.</p></div></div>
+
+<h1>Passo a Passo</h1>
+
+<div class="COLHLDR"><div class="COL"><p>1 - Antes de conectar o sensor ao computador, verifique se você tem o <a href="http://go.microsoft.com/fwlink/?LinkId=253187">Kinect for Windows Runtime v1.5</a> instalado, ou o <a href="https://www.microsoft.com/en-us/download/details.aspx?id=40277">Kinect for Windows Runtime v1.8</a> (para versões mais novas do Windows). <span class="NOTE">(Se preferir, pode instalar o <a href="https://www.microsoft.com/en-us/download/details.aspx?id=40278">Kinect for Windows SDK</a> para desenvolver suas próprias aplicações com o Kinect!)</span></p>
+<p>2 - Caso seu sensor possua um conector USB (Kinect for Windows), pode pular para o próximo passo, caso contrário, você precisará de um adaptador que permita a conexão entre o Kinect e o computador. O adaptador é conhecido como "Adaptador para Sensor Kinect", "Fonte de Alimentação para Kinect", "Xbox 360 Kinect Power Supply", "Xbox 360 Kinect AC Adapter"...</p>
+<p><span style="float: right;"><img class="BRD _ML4" alt="Kinect Device" src="/Images/KinectDevice.png" width="267" /></span>3 - Boa parte dos problemas que podem surgir nas próximas etapas estão relacionados às duas etapas anteriores. Conectar o Kinect ao computador requer cuidado e atenção... Pode funcionar de primeira como pode precisar que você reinicie o computador da primeira vez que plugar o sensor depois de ter instalado os drivers... Tudo depende! Uma boa dica para garantir que o sensor está devidamente conectado e funcionando, é olhar o "Gerenciador de Dispositivos" do Windows (Device Manager) e procurar pelos itens como mostra a figura ao lado.<br />Outra dica é que nem sempre a luz verde do Kinect precisa estar sempre verde para indicar que tudo está indo bem. Em algumas combinações de sistema/sensor, o Kinect está funcionando bem mesmo com a luz verde piscando. Se ele não tiver uma luz acesa, ou tiver uma luz acesa de outra cor, como amarelo ou vermelho, há algo errado. Tem mais! Se você estiver utilizando o adaptador externo, o Kinect pode não funcionar mesmo estando com a luz verde piscando/acesa. Certifique-se de que o adaptador está com sua luz também acesa!<br />Se tudo mais der errado, tente o site de <a href="http://support.xbox.com/kinect-for-windows/kinect-for-windows-info">suporte da Microsoft</a></p>
+<p>4 - Com o Kinect já conectado e funcionando, é hora de abrir o Scratch e ligar sua comunicação com o mundo externo. Para isso, abra o Scratch e vá para a guia "Sensores" (Sensing) e clique com o botão direito sobre o bloco "valor do sensor" (sensor value) para exibir o menu de opções e então selecionar a opção "habilitar conexões do sensor remoto" (enable remote sensor connections), como mostra a figura abaixo:<br />
+<img class="BRD _MT4" alt="Scratch Sensing" src="/Images/ScratchSensing.png" width="383" /><br />
+* Caso você tenha um firewall ou algum programa similar instalado no sistema, deve liberar o acesso do Scratch à rede.</p>
+<p>5 - Execute o Kinect Translator. Assim que é executado, o Kinect Translator tentará se conectar automaticamente ao Scratch e ao Kinect. O programa não possui uma janela, ele fica executando em segundo plano, sendo controlado através de um menu de opções que é exibido quando seu ícone é clicado. Caso ocorra um erro, uma mensagem é exibida no meio da tela.<br /><img class="BRD _MT4 _MB4" alt="Kinect Translator Tray" src="/Images/KinectTranslatorTray.png" width="291" /><br />
+Sempre que o ícone estiver verde, significa que o programa está transmitindo dados para o Scratch.<br /><img class="BRD _MT4 _MB4" alt="Kinect Translator Tray" src="/Images/KinectTranslatorTrayRun.png" width="291" /><br />
+* Caso você tenha um firewall ou algum programa similar instalado no sistema, deve liberar o acesso do Kinect Translator à rede.</p></div><div class="COL2">
+<p>6 - Para utilizar os dados enviados pelo Kinect Translator, basta utilizar os blocos "valor do sensor" (sensor value) com a parte do corpo desejada. Por questões de desempenho e clareza, o Kinect Translator não envia todas as partes do corpo para o Scratch, sendo que você deve configurar quais são as partes do corpo desejadas <span class="NOTE">(veja o próximo passo)</span>.<br />
+Por exemplo, o código abaixo faz com que um personagem siga a mão direita do jogador, sumindo toda vez que o jogador sair da frente do sensor, e aparecendo de volta quando o jogador volta para a frente do sensor.<br />
+<img class="BRD _MT4 _MB4" alt="Scratch Sensors" src="/Images/ScratchSensors.png" width="468" /><br />
+* Caso os nomes das partes do corpo não apareçam na listagem do Scratch, pode ser que seja preciso mover-se um pouco na frente do sensor.<br />
+** O número no final do nome do sensor indica a qual jogador pertence aquele valor (o Kinect Translator permite enviar os dados de até quatro pessoas simultaneamente)<br />
+*** O sensor "Presente1" indica se o jogador 1 está (1) ou não (0) na frente do sensor ("Presente2" para o jogador 2 e assim por diante...)<br />
+**** A mensagem "Presente1" é anunciada toda vez que o valor do sensor "Presente1" é alterado (idem para "Presente2" e assim por diante...)</p>
+<p>7 - Para configurar quais partes do corpo devem ser enviadas, deve-se selecionar a opção "Editar arquivo de configuração...". O arquivo de configuração tem aproximadamente essa aparência:</p>
+<div class="_PA4 BRD MONO _MT4 _MB4 INLCTRL" style="background: #fff; width: 14em;">...<br />
+PlayerCount=1<br />
+...<br />
+MinX=-240<br />
+MaxX=240<br />
+MinY=-160<br />
+MaxY=160<br />
+MinZ=0<br />
+MaxZ=400<br />
+<br />
+Language=pt_BR<br />
+<br />
+...<br />
+CenterHip=<br />
+Spine=<br />
+CenterShoulder=XY<br />
+Head=<br />
+LeftShoulder=XY<br />
+LeftElbow=<br />
+LeftWrist=<br />
+LeftHand=XY<br />
+RightShoulder=XY<br />
+RightElbow=<br />
+RightWrist=<br />
+RightHand=XY<br />
+...</div>
+<p>PlayerCount indica quantos jogadores estarão presentes (1, 2, 3 ou 4).</p>
+<p>MinX, MaxX, MinY, MaxY, MinZ e MaxZ indicam os limites dos valores que são transmitidos pelo programa. Os valores X e Y mostrados foram calibrados para que fiquem dentro dos limites da tela do Scratch. O valor Z mostrado foi calibrado para representar a distância em centímetros entre o jogador e o sensor.</p>
+<p>A opção Language permite que você selecione em qual idioma o KinectTranslator funcionará. Por padrão a configuração vem o valor pt_BR, mas você pode alterar para qualquer outro idioma, desde que o idioma tenha seu arquivo de tradução devidamente criado (por padrão o Kinect Translator suporta apenas en e pt_BR).</p>
+<p>Por fim, as opções com nomes de partes do corpo especificam quais coordenadas daquela parte devem ser enviadas para o Scratch. Pode ser uma combinação qualquer de X, Y e Z, como XY, XYZ, Y, X, e assim por diante. Caso esteja vazio, nenhuma coordenada será enviada para aquela parte do corpo.</p></div></div>
+
+<h1>Download (SDK v1.8)</h1>
+
+<p>Ao fazer o download do Kinect Translator você concorda com os <a href="/Files/KinectTranslatorLicense.txt">termos de uso</a> do programa.</p>
+<div class="_TAC">
+	<div class="INLCTRL _PA4 _MA4"><b>Windows 32 bits</b><br />
+		<a class="LNK" href="/Files/KinectTranslator32-v18.zip">Apenas o executável (v 1.0.1)</a> <span class="LBL">(zip, 70982 bytes)</span></div><div class="INLCTRL _PA4 _MA4"><b>Windows 64 bits</b><br />
+		<a class="LNK" href="/Files/KinectTranslator64-v18.zip">Apenas o executável (v 1.0.1)</a> <span class="LBL">(zip, 29180 bytes)</span></div>
+</div>
+
+<h1>Download (SDK v1.5, para computadores mais antigos)</h1>
+
+<p>Ao fazer o download do Kinect Translator você concorda com os <a href="/Files/KinectTranslatorLicense.txt">termos de uso</a> do programa.</p>
+<div class="_TAC">
+	<div class="INLCTRL _PA4 _MA4"><b>Windows 32 bits</b><br />
+		<a class="LNK" href="/Files/KinectTranslator32.zip">Apenas o executável (v 1.0.1)</a> <span class="LBL">(zip, 61062 bytes)</span></div><div class="INLCTRL _PA4 _MA4"><b>Windows 64 bits</b><br />
+		<a class="LNK" href="/Files/KinectTranslator64.zip">Apenas o executável (v 1.0.1)</a> <span class="LBL">(zip, 66853 bytes)</span></div>
+</div>
+
+<div class="SEP"></div>
+
+<div class="_TAC _MB4"><b class="LBL">O Kinect Translator está no GitHub!</b> <a class="LNK" href="https://github.com/carlosrafaelgn/KinectTranslator">github.com/carlosrafaelgn/KinectTranslator</a></div>
+
+</div>
+
+<div class="TP _HID" id="tab2">
+
+<h1>Introdução</h1>
+
+<div class="COLHLDR"><div class="COL"><p>Apesar de todas as funcionalidades oferecidas pela versão atual, 1.4, ainda ele ainda não possui uma devida <b>integração com joysticks</b>. Por isso criei um pequeno emulador para converter comandos de joystick em teclas de teclado convencional, além de converter os controles analógicos em pseudo-sinais provenientes da <a href="http://www.picocricket.com/picoboard.html">PicoBoard</a> (também encontrada <a href="http://www.sparkfun.com/products/10311">aqui</a>).</p></div><div class="COL2">
+<p>A PicoBoard dá aos programadores uma oportunidade de interagir com um dispositivo externo, fugindo dos convencionais mouse e teclado, que possui meios de interação especiais, como sensores de som, luz e quaisquer outros que possam ser conectados eletronicamente à placa.</p>
+<p>Enfim, o emulador, chamado de PicoBoard Emulator, só se tornou possível graças à <a href="http://info.scratch.mit.edu/sites/infoscratch.media.mit.edu/files/file/ScratchBoardLicense.txt">licença</a> que o MIT colocou sobre o projeto da placa e graças a <a href="http://info.scratch.mit.edu/Sensor_Board">especificação</a> da placa, também fornecida pelo MIT.</p></div></div>
+<p class="_TAC NOTE"><span style="display: inline-block; margin-right: 32px; vertical-align: bottom;"><img alt="PicoBoard" src="/Images/picoboard.png" width="146" /><br />PicoBoard</span><span style="display: inline-block; vertical-align: bottom;"><img alt="PicoBoard Emulator" src="/Images/picoboardemu.png" width="327" /><br />PicoBoard Emulator</span></p>
+
+<h1>Download</h1>
+
+<p>Ao fazer o download do PicoBoard Emulator você concorda com os <a href="/Files/PicoBoardEmulatorLicense.txt">termos de uso</a> do programa.</p>
+<div class="_TAC">
+	<div class="INLCTRL _PA4 _MA4"><b>Windows 32 bits</b><br />
+		<a class="LNK" href="/Files/setup32.exe">Arquivo de instalação</a> <span class="LBL">(exe, 220481 bytes)</span><br />
+		<a class="LNK" href="/Files/PicoBoardEmulator32.zip">Apenas o executável</a> <span class="LBL">(zip, 138973 bytes)</span></div><div class="INLCTRL _PA4 _MA4"><b>Windows 64 bits</b><br />
+		<a class="LNK" href="/Files/setup64.exe">Arquivo de instalação</a> <span class="LBL">(exe, 215967 bytes)</span><br />
+		<a class="LNK" href="/Files/PicoBoardEmulator64.zip">Apenas o executável</a> <span class="LBL">(zip, 127271 bytes)</span></div>
+</div>
+
+<div class="SEP"></div>
+
+<div class="COLHLDR"><div class="COL"><p>Para utilizar apenas a funcionalidade de conversão de joystick para teclado, basta fazer o download acima. Contudo, para utilizar a funcionalidade completa de emulação dos sensores da placa real, é necessário instalar algum software extra para realizar a comunicação entre o PicoBoard Emulator e o Scratch, como o <a href="http://sourceforge.net/projects/com0com/">com0com</a>.</p></div><div class="COL2">
+<p>O com0com é um software que possibilita a comunicação entre processos através de comunicação serial virtual. É gratuito e pode ser baixado no próprio <a href="http://sourceforge.net/projects/com0com/">site do projeto</a> <span class="NOTE">(A versão utilizada durante os testes foi a 2.2.2.0)</span>.</p></div></div>
+
+<div class="SEP"></div>
+
+<div class="COLHLDR"><div class="COL"><p>O idioma padrão do programa é o Português. Caso você deseje utilizá-lo em outro idioma, você deve fazer o download de um <a href="/Files/PicoBoardEmulator.txt">arquivo Unicode de tradução</a> que deve ser colocado na mesma pasta do arquivo executável.</p></div><div class="COL2">
+<p>Este download é necessário somente para aqueles realizando o download do arquivo executável, uma vez que o arquivo de instalação já contém uma opção para instalar o arquivo de tradução.</p>
+<p>É possível, ainda, fazer o download dos <a href="/Files/NSIS.zip">scripts</a> <a href="http://nsis.sourceforge.net/Download">NSIS</a> para criar seus próprios arquivos de instalação.</p></div></div>
+
+</div>
+
+<div class="TP _HID" id="tab3">
+
+<p>Esses são alguns jogos criados por mim, no Scratch, que costumo utilizar em demonstrações. Deixo eles aqui para que o pessoal baixe, modifique e melhore, sem dó! :)</p>
+
+<h1>Ping Pong 2D</h1>
+<div class="COLHLDR"><div class="COL"><p><img class="_MR4" style="float: left;" alt="Ping Pong 2D" src="/Images/pingpong.png" width="120" />O Ping Pong 2D funciona no modo para um jogador (Solitário) e para dois jogadores (Com um amigo), bastando utilizar as setas para selecionar a opção desejada, confirmando com a tecla espaço.</p>
+<p>O objetivo é não deixar que a bolinha quicante encoste nos cantos da tela. Para isso, os jogadores devem rebatê-la controlando pás verticais e horizontais. Perde aquele que chegar ficar com 0 vidas primeiro.<br />Quando estiver jogando sozinho, o objetivo é aguentar o máximo de tempo possível, sem deixar que as vidas cheguem à 0!</p></div><div class="COL2">
+<p>No modo para um jogador, é necessário utilizar a PicoBoard ou utilizar o PicoBoard Emulator e um joystick que tenha uma entrada analógica, pois o jogador irá controlar sozinho tanto as pás horizontais como verticais. As pás horizontais estão atreladas ao sensor "Resistência-A" do Scratch, e as verticais, ao sensor "Resistência-B".</p>
+<p>No modo para dois jogadores:<br />- Jogador 1: controla as pás verticais com as teclas 2 (Sobe) e 8 (Desce)<br />- Jogador 2: controla as pás horizontais com as setas direita/esquerda do teclado</p>
+<p><a class="LNK" href="/Files/PingPong.zip">Fazer download</a> <span class="LBL">(zip, 2296127 bytes)</span></p></div></div>
+
+<h1>Arremesso de Porcos</h1>
+<div class="COLHLDR"><div class="COL"><p><img class="_MR4" style="float: left;" alt="Arremesso de Porcos" src="/Images/porco.png" width="120" />Nesse jogo, o primeiro jogador controla um passarinho azul (twitter...) que deve fugir de um arremessador de porcos, controlado pelo segundo jogador.</p>
+<p>Para controlar o pássaro:<br />- setas direita/esquerda para mover<br />- 1 para voar</p></div><div class="COL2">
+<p>Para controlar o arremessador, basta fazer um barulho alto que um porco é arremessado (o movimento é automático, controlado por um filtro passa-baixas simples).</p>
+<p>A versão original utilizava o sensor de som da PicoBoard, porém foi adaptada para utilizar o microfone do computador <span class="NOTE">(Dê uma olhada no começo do jogo sobre informações de onde parte das imagens do jogo foram baixadas!)</span>.</p>
+<p><a class="LNK" href="/Files/Porco.zip">Fazer download</a> <span class="LBL">(zip, 1348316 bytes)</span></p></div></div>
+
+</div>
+
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

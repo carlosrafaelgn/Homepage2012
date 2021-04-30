@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head data-nores="1">
+	<meta charset="utf-8" />
+	<script type="text/javascript">//<![CDATA[
+		"use strict"; (function () { var vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); vp.setAttribute("content", ((screen.availWidth >= 864) || (screen.availHeight >= 864)) ? "width=device-width, initial-scale=1" : "width=864"); document.head.appendChild(vp); })(); //]]>
+	</script>
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>WebGL - Matrizes e Transformações Lineares</title>
+	<link rel="stylesheet" type="text/css" href="/mainnr.css" />
+	<style type="text/css">
+		.MAT {
+			display: inline-block;
+			margin: 0px 4px 0px 0px;
+			padding: 0px;
+			white-space: nowrap;
+		}
+		.MATL, .MATR, .MATC {
+			display: inline-block;
+			padding: 0px;
+			border-width: 1px;
+			border-style: solid;
+		}
+		.MATL {
+			margin: 0px;
+			border-color: #000 transparent #000 #000;
+		}
+		.MATR {
+			margin: 0px;
+			border-color: #000 #000 #000 transparent;
+		}
+		.MATC {
+			margin: 0px 2px;
+			text-align: center;
+			border-color: transparent;
+		}
+		.MATSEL {
+			background-color: #f9d95d;
+		}
+		.BLK {
+			display: block;
+		}
+	</style>
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript" charset="utf-8" src="Vector3.js"></script>
+	<script type="text/javascript" charset="utf-8" src="Matrix4.js"></script>
+	<script type="text/javascript" charset="utf-8" src="Program.js"></script>
+	<script type="text/javascript" charset="utf-8" src="Transformation.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	var lightPosition = Vector3.normalize([1, 1, 1]),
+	TEAPOT_SIZE = 10,
+
+	frameCanvas, gl, program, mat, mat2, viewMatrix, teapotMatrix, lastX, lastY, moveMode,
+	camera, grid, teapot, txtDiffuse, txtAmbient, axes, chkAutoAnim, chkAutoRefresh,
+	txtTX, txtTY, txtTZ, txtR, txtSX, txtSY, txtSZ, cbTransf, listTransf, transContainer, lastSelMat, matO,
+	ignoreChanges, lastTime, animId, frame, destinationFrame, directAnimId, directFrame, directDestinationFrame;
+
+	if (!window.requestAnimationFrame) {
+		window.requestAnimationFrame = (window.webkitRequestAnimationFrame ||
+			window.mozRequestAnimationFrame ||
+			window.oRequestAnimationFrame ||
+			window.msRequestAnimationFrame ||
+			function (callback, element) { return window.setTimeout(function () { return callback(+new Date()); }, 1000 / 60); });
+	}
+	if (!window.cancelAnimationFrame) {
+		window.cancelAnimationFrame = (window.webkitCancelAnimationFrame ||
+			window.mozCancelAnimationFrame ||
+			window.oCancelAnimationFrame ||
+			window.msCancelAnimationFrame ||
+			function (id) { return window.clearTimeout(id); });
+	}
+
+	function createTeapot() {
+		var xhr, i, d, t, vertices, normals, indices, minY, minZ, dZ, mult;
+		//carrega o modelo da chaleira (apenas vértices e índices)
+		try {
+			xhr = new XMLHttpRequest();
+			xhr.open("GET", "Teapot.txt", false);
+			xhr.send();
+			t = eval(xhr.responseText);
+			minY = t.minY, minZ = t.minZ;
+			dZ = t.maxZ - minZ;
+			normals = new Float32Array(t.normals);
+			indices = new Uint16Array(t.indices);
+			t = t.vertices;
+			vertices = new Float32Array((t.length * 4) / 3);
+			for (d = vertices.length - 4, i = t.length - 3; i >= 0; i -= 3, d -= 4) {
+				vertices[d    ] = t[i    ] * TEAPOT_SIZE; //x
+				vertices[d + 1] = (t[i + 1] - minY) * TEAPOT_SIZE; //y
+				vertices[d + 2] = t[i + 2] * TEAPOT_SIZE; //z
+				//acrescenta o quarto componente aos vértices (w)
+				vertices[d + 3] = 1; //w
+			}
+		} catch (ex) {
+			alert("Erro ao criar o modelo da chaleira: " + ex.toString());
+			throw ex;
+		}
+
+		//cria os buffers
+		t = {
+			vertices: gl.createBuffer(),
+			normals: gl.createBuffer(),
+			indices: gl.createBuffer(),
+			indexCount: indices.length
+		};
+
+		//copia os dados dos arrays locais para os buffers
+		gl.bindBuffer(gl.ARRAY_BUFFER, t.vertices);
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, t.normals);
+		gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, t.indices);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+		return t;
+	}
+
+	function createGrid() {
+		var GRID_ROWS = 20,
+		GRID_VERT_COUNT = 2 * GRID_ROWS * 2,
+		MID_IDX = (GRID_ROWS >> 1),
+		vertices = new Float32Array(4 * GRID_VERT_COUNT),
+		centerVertices = new Float32Array([
+			0, //x
+			0, //y
+			-MID_IDX * TEAPOT_SIZE, //z
+			1, //w
+			0, //x
+			0, //y
+			MID_IDX * TEAPOT_SIZE, //z
+			1, //w
+			-MID_IDX * TEAPOT_SIZE, //x
+			0, //y
+			0, //z
+			1, //w
+			MID_IDX * TEAPOT_SIZE, //x
+			0, //y
+			0, //z
+			1 //w
+		]), i, t, c;
+
+		//cria os buffers
+		c = {
+			vertices: gl.createBuffer(),
+			centerVertices: gl.createBuffer(),
+			vertexCount: GRID_VERT_COUNT,
+			centerVertexCount: 4
+		};
+
+		for (i = 0, t = 0; i <= GRID_ROWS; i++, t += 16) {
+			if (i === MID_IDX) i++;
+			vertices[t    ] = (i - MID_IDX) * TEAPOT_SIZE; //x
+			vertices[t + 1] = 0; //y
+			vertices[t + 2] = -MID_IDX * TEAPOT_SIZE; //z
+			vertices[t + 3] = 1; //w
+			vertices[t + 4] = vertices[t]; //x
+			vertices[t + 5] = 0; //y
+			vertices[t + 6] = MID_IDX * TEAPOT_SIZE; //z
+			vertices[t + 7] = 1; //w
+
+			vertices[t + 8] = -MID_IDX * TEAPOT_SIZE; //x
+			vertices[t + 9] = 0; //y
+			vertices[t + 10] = (i - MID_IDX) * TEAPOT_SIZE; //z
+			vertices[t + 11] = 1; //w
+			vertices[t + 12] = MID_IDX * TEAPOT_SIZE; //x
+			vertices[t + 13] = 0; //y
+			vertices[t + 14] = vertices[t + 10]; //z
+			vertices[t + 15] = 1; //w
+		}
+
+		//copia os dados dos arrays locais para os buffers
+		gl.bindBuffer(gl.ARRAY_BUFFER, c.vertices);
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, c.centerVertices);
+		gl.bufferData(gl.ARRAY_BUFFER, centerVertices, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+		return c;
+	}
+
+	function createAxes() {
+		var vertices = new Float32Array([
+			//eixo x
+			1, 1, 1, 1,
+			1, -1, 1, 1,
+			1, -1, -1, 1,
+			1, 1, -1, 1,
+			2 * TEAPOT_SIZE, 0, 0, 1,
+			//eixo y
+			1, 1, 1, 1,
+			1, 1, -1, 1,
+			-1, 1, -1, 1,
+			-1, 1, 1, 1,
+			0, 2 * TEAPOT_SIZE, 0, 1,
+			//eixo z
+			1, 1, 1, 1,
+			-1, 1, 1, 1,
+			-1, -1, 1, 1,
+			1, -1, 1, 1,
+			0, 0, 2 * TEAPOT_SIZE, 1,
+			//extra
+			-1, -1, -1, 1
+		]),
+		colors = new Float32Array([
+			//eixo x
+			1, 0.5, 0.5, 1,
+			1, 0, 0, 1,
+			0.5, 0, 0, 1,
+			1, 0, 0, 1,
+			1, 0.8, 0.8, 1,
+			//eixo y
+			0.5, 1, 0.5, 1,
+			0, 0.5, 0, 1,
+			0, 0.25, 0, 1,
+			0, 0.5, 0, 1,
+			0.8, 1, 0.8, 1,
+			//eixo z
+			0.5, 0.5, 1, 1,
+			0, 0, 1, 1,
+			0, 0, 0.5, 1,
+			0, 0, 1, 1,
+			0.8, 0.8, 1, 1,
+			//extra
+			0.25, 0.25, 0.25, 1
+		]),
+		indices = new Uint8Array([
+			//eixo x
+			0, 1, 4,
+			1, 2, 4,
+			2, 3, 4,
+			3, 0, 4,
+			//eixo y
+			5, 6, 9,
+			6, 7, 9,
+			7, 8, 9,
+			8, 5, 9,
+			//eixo z
+			10, 11, 14,
+			11, 12, 14,
+			12, 13, 14,
+			13, 10, 14,
+			//extras
+			1, 15, 2,
+			2, 15, 3,
+			6, 15, 7,
+			7, 15, 8,
+			11, 15, 12,
+			12, 15, 13
+		]),
+		//cria os buffers
+		a = {
+			vertices: gl.createBuffer(),
+			colors: gl.createBuffer(),
+			indices: gl.createBuffer(),
+			indexCount: ((3 * 4 * 3) + (6 * 3))
+		}, i;
+
+		//redimensiona...
+		//move os eixos para que fiquem na posição -10, 0, 0
+		for (i = vertices.length - 4; i >= 0; i -= 4) {
+			vertices[i] *= 0.5;
+			vertices[i + 1] *= 0.5;
+			vertices[i + 2] *= 0.5;
+			vertices[i] -= TEAPOT_SIZE;
+		}
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, a.vertices);
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, a.colors);
+		gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, a.indices);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+		return a;
+	}
+
+	function txtDiffuse_ValueChanged(model, value) {
+		program.diffuseLightIntensity(value / 100);
+		return drawFrame();
+	}
+
+	function txtAmbient_ValueChanged(model, value) {
+		program.ambientLightIntensity(value / 100);
+		return drawFrame();
+	}
+
+	function canvas_MouseDown(e) {
+		if (moveMode <= 0) {
+			lastX = e.clientX;
+			lastY = e.clientY;
+			moveMode = ((e.button === 0) ? 1 : 2);
+			attachMouse(document, "mousemove", document_MouseMove, true);
+			attachMouse(document, "mouseup", document_MouseUp, true);
+		}
+		return cancelEvent(e);
+	}
+
+	function document_MouseMove(e) {
+		var p = Math.PI * 2, x, z;
+		switch (moveMode) {
+			case 1:
+				//camera rotation
+				camera.rx += (e.clientY - lastY) * 0.0078125;
+				camera.ry += (e.clientX - lastX) * 0.0078125;
+
+				lastX = e.clientX;
+				lastY = e.clientY;
+
+				while (camera.rx >= p)
+					camera.rx -= p;
+				while (camera.rx < 0)
+					camera.rx += p;
+
+				while (camera.ry >= p)
+					camera.ry -= p;
+				while (camera.ry < 0)
+					camera.ry += p;
+
+				viewMatrix.rotateXIdentity(camera.rx).rotateY(camera.ry);
+
+				//ver o comentário no main, explicando a relação entre lightPosition e lightDirection!
+				program.lightDirectionv(viewMatrix.multiplyVector3(Vector3.clone(lightPosition)));
+
+				viewMatrix.translateFromLeft(camera.px, camera.py, camera.pz);
+				break;
+
+			case 2:
+				//camera panning
+				camera.px += (e.clientX - lastX) * (.125 * (1 + ((camera.pz + 15) / -65)));
+				camera.py -= (e.clientY - lastY) * (.125 * (1 + ((camera.pz + 15) / -65)));
+
+				lastX = e.clientX;
+				lastY = e.clientY;
+
+				viewMatrix.translateIdentity(camera.px, camera.py, camera.pz).rotateX(camera.rx).rotateY(camera.ry);
+				break;
+
+			default:
+				return cancelEvent(e);
+		}
+		drawFrame();
+		return cancelEvent(e);
+	}
+
+	function document_Scroll(e) {
+		if (e.target === frameCanvas) {
+			camera.pz += (e.detail ? e.detail / -3 : e.wheelDelta / 120) * 5;
+			if (camera.pz > -15) camera.pz = -15;
+			else if (camera.pz < -200) camera.pz = -200;
+			viewMatrix.translateIdentity(camera.px, camera.py, camera.pz).rotateX(camera.rx).rotateY(camera.ry);
+			drawFrame();
+			return cancelEvent(e);
+		}
+		return true;
+	}
+
+	function document_MouseDown(e) {
+		moveMode = -1;
+		return true;
+	}
+
+	function document_ContextMenu(e) {
+		return (moveMode < 0 ? true : cancelEvent(e));
+	}
+
+	function document_MouseUp(e) {
+		moveMode = 0;
+		detachMouse(document, "mousemove", document_MouseMove, true);
+		detachMouse(document, "mouseup", document_MouseUp, true);
+		return cancelEvent(e);
+	}
+
+	function cbTransf_SelectedIndexChanged(model, selectedIndex, previousIndex) {
+		switch (selectedIndex) {
+			case 0:
+				Elem.hide($("ctrlS"));
+				Elem.hide($("ctrlR"));
+				Elem.show($("ctrlT"));
+				break;
+			case 1:
+				Elem.hide($("ctrlT"));
+				Elem.hide($("ctrlR"));
+				Elem.show($("ctrlS"));
+				break;
+			default:
+				Elem.hide($("ctrlT"));
+				Elem.hide($("ctrlS"));
+				Elem.showHide($("imgRX"), selectedIndex === 2);
+				Elem.showHide($("imgRY"), selectedIndex === 3);
+				Elem.showHide($("imgRZ"), selectedIndex === 4);
+				Elem.show($("ctrlR"));
+				break;
+		}
+		return true;
+	}
+
+	function transformTeapot() {
+		teapotMatrix.identity();
+		if (frame > 0) {
+			//as transformações devem ser aplicadas da última para a primeira!!!
+			var fi = frame | 0;
+			if (fi < (listTransf.count() - 1))
+				listTransf.getItem(fi + 1).apply(teapotMatrix, frame - fi);
+			while (fi > 0) {
+				listTransf.getItem(fi).apply(teapotMatrix, 1);
+				fi--;
+			}
+		}
+		return true;
+	}
+
+	function transformTeapotDirect() {
+		teapotMatrix.identity();
+		if (directDestinationFrame > 0) {
+			//as transformações devem ser aplicadas da última para a primeira!!!
+			for (var i = directDestinationFrame; i > 0; i--) {
+				listTransf.getItem(i).apply(teapotMatrix, directFrame);
+			}
+		}
+		return true;
+	}
+
+	function animateTransformation(time) {
+		if (destinationFrame >= 0) {
+			if (lastTime < 0) lastTime = time;
+			var dir = ((destinationFrame < frame) ? -1 : 1);
+			frame += (dir * 1 * ((time - lastTime) / 1000));
+			lastTime = time;
+			if (dir < 0) {
+				if (frame <= destinationFrame) {
+					frame = destinationFrame;
+					animId = undefined;
+					transformTeapot();
+					return drawFrame();
+				}
+			} else {
+				if (frame >= destinationFrame) {
+					frame = destinationFrame;
+					animId = undefined;
+					transformTeapot();
+					return drawFrame();
+				}
+			}
+			transformTeapot();
+			animId = window.requestAnimationFrame(animateTransformation, frameCanvas);
+			return drawFrame();
+		}
+		return true;
+	}
+
+	function animateTransformationDirect(time) {
+		if (directDestinationFrame >= 0) {
+			if (lastTime < 0) lastTime = time;
+			directFrame += (0.25 * ((time - lastTime) / 1000));
+			lastTime = time;
+			if (directFrame >= 1) {
+				directFrame = 1;
+				directAnimId = undefined;
+				transformTeapotDirect();
+				return drawFrame();
+			}
+			transformTeapotDirect();
+			directAnimId = window.requestAnimationFrame(animateTransformationDirect, frameCanvas);
+			return drawFrame();
+		}
+		return true;
+	}
+
+	function startAnimation(destination) {
+		destinationFrame = destination;
+		if (animId === undefined) {
+			lastTime = -1;
+			animId = window.requestAnimationFrame(animateTransformation, frameCanvas);
+		}
+		return true;
+	}
+
+	function startAnimationDirect(destination) {
+		if (directAnimId === undefined) {
+			directDestinationFrame = destination;
+			lastTime = -1;
+			directAnimId = window.requestAnimationFrame(animateTransformationDirect, frameCanvas);
+		}
+		return true;
+	}
+
+	function stopAnimation() {
+		destinationFrame = -1;
+		directDestinationFrame = -1;
+		if (animId !== undefined) {
+			window.cancelAnimationFrame(animId);
+			animId = undefined;
+		}
+		if (directAnimId !== undefined) {
+			window.cancelAnimationFrame(directAnimId);
+			directAnimId = undefined;
+		}
+		return true;
+	}
+
+	function showPleaseSelect() {
+		Popup.showInfo("Por favor, selecione uma transformação antes de prosseguir.", "Oops...");
+		return true;
+	}
+
+	function changeMatrixBackground(index) {
+		if (lastSelMat)
+			Elem.removeStyle(lastSelMat, "MATSEL");
+		lastSelMat = (index ? listTransf.getItem(index).getElement() : matO);
+		Elem.addStyle(lastSelMat, "MATSEL");
+		return true;
+	}
+
+	function listTransf_SelectedIndexChanged(model, selectedIndex, previousIndex) {
+		if (ignoreChanges) {
+			ignoreChanges = false;
+		} else if (selectedIndex >= 0) {
+			changeMatrixBackground(selectedIndex);
+			if (selectedIndex > 0) loadTransformation(listTransf.getSelectedItem());
+			if (chkAutoRefresh.isChecked()) {
+				if (chkAutoAnim.isChecked()) {
+					if (directAnimId !== undefined)
+						stopAnimation();
+					startAnimation(selectedIndex);
+				} else {
+					stopAnimation();
+					frame = selectedIndex;
+					transformTeapot();
+					drawFrame();
+				}
+			}
+		}
+		return true;
+	}
+
+	function createTransformation() {
+		var i = cbTransf.getSelectedIndex();
+		switch (i) {
+			case 0:
+				return new Transformation(listTransf, i, txtTX.getValue(), txtTY.getValue(), txtTZ.getValue());
+			case 1:
+				return new Transformation(listTransf, i, txtSX.getValue(), txtSY.getValue(), txtSZ.getValue());
+			default:
+				return new Transformation(listTransf, i, txtR.getValue());
+		}
+	}
+
+	function loadTransformation(t) {
+		switch (t.type) {
+			case 0:
+				txtTX.setValue(t.x);
+				txtTY.setValue(t.y);
+				txtTZ.setValue(t.z);
+				break;
+			case 1:
+				txtSX.setValue(t.x);
+				txtSY.setValue(t.y);
+				txtSZ.setValue(t.z);
+				break;
+			default:
+				txtR.setValue(t.x);
+				break;
+		}
+		cbTransf.setSelectedIndex(t.type);
+		return true;
+	}
+
+	function btnCreateTransf_Click() {
+		var i = listTransf.getSelectedIndex(), t = createTransformation();
+		i = ((i >= 0) ? (i + 1) : listTransf.count());
+		if (i <= 1) {
+			transContainer.insertBefore(t.getElement(), matO);
+		} else if (i >= listTransf.count()) {
+			transContainer.insertBefore(t.getElement(), transContainer.childNodes[2]);
+		} else {
+			transContainer.insertBefore(t.getElement(), listTransf.getSelectedItem().getElement());
+		}
+		listTransf.add(i, t);
+		listTransf.setSelectedIndex(i);
+		return true;
+	}
+
+	function btnReplaceTransf_Click() {
+		var i = listTransf.getSelectedIndex(), t, ot;
+		if (i > 0) {
+			stopAnimation();
+			frame = i;
+			t = createTransformation();
+			ot = listTransf.getSelectedItem();
+			transContainer.replaceChild(t.getElement(), ot.getElement());
+			listTransf.setItem(i, t);
+			changeMatrixBackground(i);
+			if (chkAutoRefresh.isChecked()) {
+				transformTeapot();
+				drawFrame();
+			}
+		} else {
+			showPleaseSelect();
+		}
+		return true;
+	}
+
+	function btnMoveUp_Click() {
+		var i = listTransf.getSelectedIndex(), t;
+		if (i > 0) {
+			if (i <= 1) return true;
+			stopAnimation();
+			frame = i - 1;
+			t = listTransf.getSelectedItem();
+			listTransf.setItem(i, listTransf.getItem(i - 1));
+			listTransf.setItem(i - 1, t);
+			transContainer.removeChild(t.getElement());
+			transContainer.insertBefore(t.getElement(), listTransf.getItem(i).getElement().nextSibling);
+			ignoreChanges = true;
+			listTransf.setSelectedIndex(frame);
+			if (chkAutoRefresh.isChecked()) {
+				transformTeapot();
+				drawFrame();
+			}
+		} else {
+			showPleaseSelect();
+		}
+		return true;
+	}
+
+	function btnMoveDown_Click() {
+		var i = listTransf.getSelectedIndex(), t;
+		if (i > 0) {
+			if (i >= (listTransf.count() - 1)) return true;
+			stopAnimation();
+			frame = i + 1;
+			t = listTransf.getSelectedItem();
+			listTransf.setItem(i, listTransf.getItem(i + 1));
+			listTransf.setItem(i + 1, t);
+			transContainer.removeChild(t.getElement());
+			transContainer.insertBefore(t.getElement(), listTransf.getItem(i).getElement());
+			ignoreChanges = true;
+			listTransf.setSelectedIndex(frame);
+			if (chkAutoRefresh.isChecked()) {
+				transformTeapot();
+				drawFrame();
+			}
+		} else {
+			showPleaseSelect();
+		}
+		return true;
+	}
+
+	function btnClone_Click() {
+		var i = listTransf.getSelectedIndex(), c = listTransf.count(), t;
+		if (i > 0 && c > 0) {
+			i++;
+			stopAnimation();
+			frame = i;
+			t = listTransf.getSelectedItem().clone();
+			transContainer.insertBefore(t.getElement(), listTransf.getSelectedItem().getElement());
+			listTransf.add(i, t);
+			ignoreChanges = true;
+			listTransf.setSelectedIndex(i);
+			changeMatrixBackground(i);
+			if (chkAutoRefresh.isChecked()) {
+				transformTeapot();
+				drawFrame();
+			}
+		} else {
+			showPleaseSelect();
+		}
+		return true;
+	}
+
+	function btnRemove_Click() {
+		var i = listTransf.getSelectedIndex(), c = listTransf.count();
+		if (i > 0 && c > 0) {
+			c--;
+			stopAnimation();
+			transContainer.removeChild(listTransf.getItem(i).getElement());
+			if (c === 1) {
+				frame = 0;
+				ignoreChanges = true;
+				listTransf.setSelectedIndex(0);
+				changeMatrixBackground(0);
+				listTransf.remove(i);
+			} else {
+				frame = ((i >= c) ? (c - 1) : i);
+				listTransf.remove(i);
+				ignoreChanges = true;
+				listTransf.setSelectedIndex(frame);
+				changeMatrixBackground(frame);
+				loadTransformation(listTransf.getSelectedItem());
+			}
+			if (chkAutoRefresh.isChecked()) {
+				transformTeapot();
+				drawFrame();
+			}
+		} else {
+			showPleaseSelect();
+		}
+		return true;
+	}
+
+	function btnRemoveAll_Click() {
+		var i;
+		stopAnimation();
+		frame = 0;
+		for (i = listTransf.count() - 1; i >= 1; i--)
+			transContainer.removeChild(listTransf.getItem(i).getElement());
+		listTransf.clear();
+		listTransf.addLast("[Inicial]");
+		ignoreChanges = true;
+		listTransf.setSelectedIndex(0);
+		changeMatrixBackground(0);
+		if (chkAutoRefresh.isChecked()) {
+			transformTeapot();
+			drawFrame();
+		}
+		return true;
+	}
+
+	function btnRefresh_Click() {
+		stopAnimation();
+		frame = listTransf.getSelectedIndex();
+		transformTeapot();
+		drawFrame();
+		return true;
+	}
+
+	function btnAnimate_Click() {
+		stopAnimation();
+		frame = 0;
+		directFrame = 0;
+		transformTeapot();
+		drawFrame();
+		if (listTransf.getSelectedIndex() > 0)
+			startAnimation(listTransf.getSelectedIndex());
+		return true;
+	}
+
+	function btnAnimateDirect_Click() {
+		stopAnimation();
+		frame = 0;
+		directFrame = 0;
+		transformTeapotDirect();
+		drawFrame();
+		if (listTransf.getSelectedIndex() > 0)
+			startAnimationDirect(listTransf.getSelectedIndex());
+		return true;
+	}
+
+	function matO_Click() {
+		listTransf.setSelectedIndex(0);
+		return true;
+	}
+
+	function main() {
+		var chk;
+		txtDiffuse = new NumericUpDown(0, 100, 100, true);
+		txtDiffuse.replaceControl($("txtDiffuse"), 5.5, 3);
+		txtDiffuse.onValueChanged.attach(txtDiffuse_ValueChanged);
+		Elem.setLabelledBy($("lblTxtDiffuse"), $("txtDiffuse"));
+		txtAmbient = new NumericUpDown(0, 100, 45, true);
+		txtAmbient.replaceControl($("txtAmbient"), 5.5, 3);
+		txtAmbient.onValueChanged.attach(txtAmbient_ValueChanged);
+		Elem.setLabelledBy($("lblTxtAmbient"), $("txtAmbient"));
+
+		chk = $("mnuOpt");
+		chk.parentNode.removeChild(chk);
+		document.body.appendChild(chk);
+
+		chkAutoAnim = new CheckBox(true, "Animar automaticamente");
+		chkAutoAnim.replaceControl($("chkAutoAnim"), true);
+		chkAutoRefresh = new CheckBox(true, "Atualizar automaticamente");
+		chkAutoRefresh.replaceControl($("chkAutoRefresh"), true);
+
+		FloatingPopup.prepareButtonBase($("mnuOpt"), $("btnOpt"), false);
+
+		attachMouse($("btnCreateTransf"), "click", btnCreateTransf_Click);
+		attachMouse($("btnReplaceTransf"), "click", btnReplaceTransf_Click);
+
+		cbTransf = new ListBox();
+		cbTransf.addLast("Translação");
+		cbTransf.addLast("Redimensionamento");
+		cbTransf.addLast("Rotação X");
+		cbTransf.addLast("Rotação Y");
+		cbTransf.addLast("Rotação Z");
+		cbTransf.setSelectedIndex(0);
+		cbTransf.replaceComboControl($("cbTransf"), 15);
+		cbTransf.onSelectedIndexChanged.attach(cbTransf_SelectedIndexChanged);
+
+		txtTX = new NumericUpDown(-100, 100, 0, false);
+		txtTX.replaceControl($("txtTX"), 6.5, 4);
+		txtTY = new NumericUpDown(-100, 100, 0, false);
+		txtTY.replaceControl($("txtTY"), 6.5, 4);
+		txtTZ = new NumericUpDown(-100, 100, 0, false);
+		txtTZ.replaceControl($("txtTZ"), 6.5, 4);
+
+		txtR = new NumericUpDown(-359, 359, 0, true);
+		txtR.replaceControl($("txtR"), 6.5, 4);
+
+		txtSX = new NumericUpDown(1, 9000, 100, false);
+		txtSX.replaceControl($("txtSX"), 6.5, 4);
+		txtSY = new NumericUpDown(1, 9000, 100, false);
+		txtSY.replaceControl($("txtSY"), 6.5, 4);
+		txtSZ = new NumericUpDown(1, 9000, 100, false);
+		txtSZ.replaceControl($("txtSZ"), 6.5, 4);
+
+		listTransf = new ListBox();
+		listTransf.replaceControl($("listTransf"), 15, 25).lb.style.verticalAlign = "top";
+		listTransf.addLast("[Inicial]");
+		listTransf.setSelectedIndex(0);
+		listTransf.onSelectedIndexChanged.attach(listTransf_SelectedIndexChanged);
+
+		attachMouse($("btnMoveUp"), "click", btnMoveUp_Click);
+		attachMouse($("btnMoveDown"), "click", btnMoveDown_Click);
+		attachMouse($("btnClone"), "click", btnClone_Click);
+		attachMouse($("btnRemove"), "click", btnRemove_Click);
+		attachMouse($("btnRemoveAll"), "click", btnRemoveAll_Click);
+		attachMouse($("btnRefresh"), "click", btnRefresh_Click);
+		attachMouse($("btnAnimate"), "click", btnAnimate_Click);
+		attachMouse($("btnAnimateDirect"), "click", btnAnimateDirect_Click);
+
+		ignoreChanges = false;
+		animId = undefined;
+		directAnimId = undefined;
+		frame = 0;
+		directFrame = 0;
+		destinationFrame = -1;
+		directDestinationFrame = -1;
+		lastX = 0;
+		lastY = 0;
+		moveMode = 0;
+		camera = { rx: Math.PI * 0.0625, ry: 0, px: 0, py: -10, pz: -50 };
+		frameCanvas = $("frameCanvas");
+		transContainer = $("transContainer");
+		matO = $("matO");
+		lastSelMat = matO;
+		attachMouse(matO, "click", matO_Click);
+		attachScroll(document_Scroll);
+		attachMouse(frameCanvas, "mousedown", canvas_MouseDown);
+		attachObserver(frameCanvas, "contextmenu", cancelEvent);
+		attachMouse(document, "mousedown", document_MouseDown);
+		attachObserver(document, "contextmenu", document_ContextMenu);
+
+		//gl = Program.prototype.createGL(frameCanvas, { antialias: false });
+		gl = Program.prototype.createGL(frameCanvas);
+		if (!gl) {
+			Popup.showError("Aparentemente seu browser não oferece suporte à tecnologia WebGL!");
+			return false;
+		}
+		//também poderia fazer das seguintes formas:
+		//
+		//<script id="_vertexShader" type="x-shader/x-vertex" src="..."> Vazio ...
+		//<script id="_fragmentShader" type="x-shader/x-fragment" src="..."> Vazio ...
+		//new Program(gl, "_vertexShader", "_fragmentShader");
+		//
+		//<script id="_vertexShader" type="x-shader/x-vertex"> Código! ...
+		//<script id="_fragmentShader" type="x-shader/x-fragment"> Código! ...
+		//new Program(gl, "_vertexShader", "_fragmentShader");
+		//
+		//configura a iluminação inicial
+		program = new Program(gl, "VS.txt", "FS.txt", true, true);
+		program.use();
+		program.diffuseLightIntensity(1);
+		program.ambientLightIntensity(0.45);
+
+		//habilita os atributos do vertexShader
+		gl.enableVertexAttribArray(0); //pos
+		gl.enableVertexAttribArray(1); //normal
+		gl.enableVertexAttribArray(2); //color
+
+		//configura a cor do fundo da cena
+		gl.clearColor(0, 0, 0, 0);
+
+		//habilita os testes de profundidade, fazendo com que os polígonos de trás não apareçam
+		//à frente dos polígonos que estão efetivamente na frente (novo z deve ser <= ao z
+		//presente no pixel, para desenhar)
+		gl.depthFunc(gl.LEQUAL);
+		gl.depthRange(0, 1); //valor para a parte da frente, valor para a parte de trás
+		gl.depthMask(true);
+		gl.enable(gl.DEPTH_TEST);
+		gl.clearDepth(1);
+
+		//define que deve-se determinar a parte da "frente" de uma face utilizando os vértices da face em sentido anti-horário
+		gl.frontFace(gl.CCW);
+		//desabilita a opção que descarta (não desenha) faces ocultas, e especifica que as faces ocultas são as de trás
+		gl.disable(gl.CULL_FACE);
+		gl.cullFace(gl.BACK);
+
+		//confiura o alpha blend para poder funcionar a transparência
+		gl.disable(gl.BLEND);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+		//desabilita as opções indesejadas (estão aqui só para mostrar que elas existem)
+		gl.disable(gl.DITHER); //melhora a qualidade da saída, criando um efeito de pontilhado para simular cores intermediárias
+		gl.disable(gl.STENCIL_TEST); //o stencil buffer é um buffer adicional, utilizado apenas para efeitos especiais/testes
+		gl.disable(gl.SCISSOR_TEST); //a scissor define uma área retangular, dentro da viewport, que delimita onde pode-se desenhar
+
+		teapot = createTeapot();
+		grid = createGrid();
+		axes = createAxes();
+
+		//cria as matrizes temporárias mat e mat2, e a matriz da vista
+		mat = new Matrix4(true);
+		mat2 = new Matrix4(true);
+		viewMatrix = new Matrix4(true);
+		teapotMatrix = new Matrix4();
+		viewMatrix.rotateXIdentity(camera.rx).rotateY(camera.ry);
+
+		//o uniform lightDirection deveria ser o inverso (-x, -y, -z) da versão
+		//normalizada da direção da luz, para fazer com que o produto escalar funcionasse OK
+		//aqui, estamos definindo lightDirection como sendo igual a lightPosition, por causa
+		//de uma incrível coincidência :)
+		//
+		//direção = destino da luz - posição da luz
+		//
+		//como estamos considerando o destino da luz como (0, 0, 0), então
+		//direção = (0, 0, 0) - posição = -posição
+		//mas como o shader precisa de -direção, então temos:
+		//se: direção = -posição
+		//logo: -direção = --posição = posição!!!
+		program.lightDirectionv(viewMatrix.multiplyVector3(Vector3.clone(lightPosition)));
+
+		viewMatrix.translateFromLeft(camera.px, camera.py, camera.pz);
+
+		//define a vista da cena como sendo o canvas inteiro
+		gl.viewport(0, 0, frameCanvas.width, frameCanvas.height);
+
+		drawFrame();
+
+		return true;
+	}
+
+	function drawFrame() {
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+		gl.enableVertexAttribArray(1); //normal
+		gl.disableVertexAttribArray(2); //color
+		program.useLight(1);
+
+		//aplica as transformações do teapot à mat
+		mat.copy(viewMatrix).multiply(teapotMatrix);
+
+		//
+		//para criar a matriz normal, deve-se ignorar as translações, pois os normais
+		//devem ser tratados como direções e não como pontos
+		//assim, para criar a matriz normal, bastaria replicar as transformações de rotação,
+		//ignorando as transformações de translação
+		//
+		//program.normalMatrix(mat.rotateYIdentity(cameraRY).rotateX(cameraRX));
+		//
+		//contudo, caso seja aplicada uma transformação de redimensionamento, o método de
+		//replicar as transformações não dará o resultado esperado
+		//logo, para um caso geral, sem se preocupar com quais transformações foram
+		//aplicadas à matriz, deve-se utilizar o método apropriado para extrair a
+		//matriz normal de outra matriz: calculando a transposta da inversa!
+		//(método makeNormalMatrix)
+		//ver mais aqui: http://www.songho.ca/opengl/gl_normaltransform.html
+		//
+		//UMA RESSALVA: ao utilizar esse método, assume-se que a matriz ainda NÃO foi
+		//transformada pela PROJEÇÃO! se a projeção já tiver sido aplicada, coisas
+		//feias ocorrerão :)
+		//
+		//program.normalMatrix(mat.makeNormalMatrix());
+		//
+		program.normalMatrix(mat2.copy(mat).makeNormalMatrix());
+
+		program.modelViewProjectionMatrix(mat.perspectiveFovFromLeft(50, frameCanvas.width / frameCanvas.height, 1, 150 - camera.pz));
+
+		gl.vertexAttrib4f(2, 36 / 255, 124 / 255, 230 / 255, 1);
+		gl.bindBuffer(gl.ARRAY_BUFFER, teapot.vertices);
+		gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+		gl.bindBuffer(gl.ARRAY_BUFFER, teapot.normals);
+		gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, teapot.indices);
+		gl.drawElements(gl.TRIANGLES, teapot.indexCount, gl.UNSIGNED_SHORT, 0);
+
+		//desenha os elementos auxiliares da cena (sem normais e sem iluminação)
+		gl.disableVertexAttribArray(1); //normal
+		gl.enableVertexAttribArray(2); //color
+		program.useLight(0);
+
+		//volta com a matriz da vista, sem as transformações do teapot, para utilizar com os elementos auxiliares
+		mat.copy(viewMatrix);
+		program.modelViewProjectionMatrix(mat.perspectiveFovFromLeft(50, frameCanvas.width / frameCanvas.height, 1, 150 - camera.pz));
+
+		//desenha a indicação dos eixos
+		gl.bindBuffer(gl.ARRAY_BUFFER, axes.vertices);
+		gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+		gl.bindBuffer(gl.ARRAY_BUFFER, axes.colors);
+		gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 0, 0);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, axes.indices);
+		gl.drawElements(gl.TRIANGLES, axes.indexCount, gl.UNSIGNED_BYTE, 0);
+
+		gl.disableVertexAttribArray(2); //color
+
+		//desenha a grade
+		gl.vertexAttrib4f(2, 0.75, 0.75, 0.75, 1);
+		gl.bindBuffer(gl.ARRAY_BUFFER, grid.vertices);
+		gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+		gl.drawArrays(gl.LINES, 0, grid.vertexCount);
+
+		gl.vertexAttrib4f(2, 0, 0, 0, 1);
+		gl.bindBuffer(gl.ARRAY_BUFFER, grid.centerVertices);
+		gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+		gl.drawArrays(gl.LINES, 0, grid.centerVertexCount);
+
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0" style="min-width: 800px;"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div class="TLB _MB4" role="toolbar">
+<div class="BTN BTNTLB" id="btnOpt">Opções &#9660;</div>
+<div class="TLBSEP"></div>
+
+<div class="LBL _MR4 TXTLBL" id="lblTxtDiffuse">Luz difusa (%)</div><div id="txtDiffuse"></div>
+<div class="LBL _MR4 TXTLBL" id="lblTxtAmbient">Luz ambiente (%)</div><div id="txtAmbient"></div>
+
+<div id="mnuOpt" class="ITCONT FPOP _HID _PA4">
+	<div id="chkAutoAnim"></div>
+	<div id="chkAutoRefresh"></div>
+</div>
+
+</div>
+
+<h1>Transformações</h1>
+
+<div class="_TAC" style="white-space: nowrap;">
+
+<div class="INLCTRL" style="text-align: left;">
+<div id="cbTransf"></div> <div class="BTN" id="btnCreateTransf">Criar</div> <div class="BTN" id="btnReplaceTransf">Substituir</div>
+
+<div class="_MT4 _MB4" id="ctrlT">
+<div class="_MB4"><div class="LBL TXTLBL" style="width: 2em;">X</div><div id="txtTX"></div></div>
+<div class="_MB4"><div class="LBL TXTLBL" style="width: 2em;">Y</div><div id="txtTY"></div></div>
+<div class="LBL TXTLBL" style="width: 2em;">Z</div><div id="txtTZ"></div>
+</div>
+
+<div class="_MT4 _MB4 _HID" id="ctrlS" aria-hidden="true">
+<div class="_MB4"><div class="LBL TXTLBL" style="width: 4em;">X (%)</div><div id="txtSX"></div></div>
+<div class="_MB4"><div class="LBL TXTLBL" style="width: 4em;">Y (%)</div><div id="txtSY"></div></div>
+<div class="LBL TXTLBL" style="width: 4em;">Z (%)</div><div id="txtSZ"></div>
+</div>
+
+<div class="_MT4 _MB4 _HID" id="ctrlR" aria-hidden="true">
+<div style="display: inline-block; vertical-align: top;"><div class="LBL TXTLBL" style="width: 9em;">Ângulo (Graus)</div><div id="txtR"></div></div>
+<img alt="Eixo X" src="/Images/xaxis.png" id="imgRX" width="101" height="101" class="_HID" aria-hidden="true" />
+<img alt="Eixo Y" src="/Images/yaxis.png" id="imgRY" width="101" height="101" class="_HID" aria-hidden="true" />
+<img alt="Eixo Z" src="/Images/zaxis.png" id="imgRZ" width="101" height="101" class="_HID" aria-hidden="true" />
+</div>
+
+<div id="listTransf"></div><div class="INLCTRL _ML4">
+<div class="BTN BLK" id="btnMoveUp">&#9650; Subir</div>
+<div class="BTN BLK" id="btnMoveDown">&#9660; Descer</div>
+<br />
+<div class="BTN BLK" id="btnClone">Duplicar</div>
+<br />
+<div class="BTN BLK" id="btnRemove">Remover</div>
+<div class="BTN BLK" id="btnRemoveAll">Remover todos</div>
+<br />
+<div class="BTN BLK" id="btnRefresh">Atualizar</div>
+<div class="BTN BLK" id="btnAnimate">Animar passo a passo</div>
+<div class="BTN BLK" id="btnAnimateDirect">Animar direto</div>
+</div>
+</div><canvas class="INLCTRL" id="frameCanvas" width="400" height="400" style="margin-left: 32px; cursor: default;"></canvas>
+
+</div>
+
+<h1>Multiplicação matricial correspondente</h1>
+<div class="BRD _PA4" id="transContainer" style="overflow-x: auto; white-space: nowrap; cursor: default;"><div class="MAT"><div class="MATL"><br /><br /><br />&nbsp;</div><div class="MATC">rx<br />ry<br />rz<br />rw</div><div class="MATR"><br /><br /><br />&nbsp;</div></div><div class="MAT"><br />=<br /><br />&nbsp;</div><div id="matO" style="cursor: pointer;" class="MAT MATSEL"><div class="MATL"><br /><br /><br />&nbsp;</div><div class="MATC">x<br />y<br />z<br />w</div><div class="MATR"><br /><br /><br />&nbsp;</div></div></div>
+
+<p>A matriz [x, y, z, w] representa o ponto original, e [rx, ry, rz, rw] representa a matriz resultante, obtida depois das multiplicações.</p>
+
+<h1>Funcionamento</h1>
+<p>Clique com o botão esquerdo e arraste para alterar a rotação da câmera.<br />
+Clique com o botão direito e arraste para alterar a posição da câmera.<br />
+Utilize a rolagem do mouse para alterar o zoom.</p>
+<h1>Informações úteis</h1>
+<div class="COLHLDR"><div class="COL"><p>A distância entre as linhas da grade é 10.</p>
+<p>Cores dos eixos: <span style="color: #f00; font-weight: bold;">X</span>, <span style="color: #009000; font-weight: bold;">Y</span>, <span style="color: #0000FF; font-weight: bold;">Z</span>. Os eixos foram deslocados para a esquerda (-10, 0, 0) da origem para que não interferissem com o modelo da chaleira!</p>
+<p>O modelo da chaleira (<a href="http://en.wikipedia.org/wiki/Utah_teapot">Teapot</a>) foi originalmente obtido no site da <a href="http://people.sc.fsu.edu/~jburkardt/data/obj/obj.html">Florida State University</a>, e depois convertido para JSON. Essa versão em JSON pode ser obtida <a href="Teapot.txt">aqui</a>.</p>
+<p><b>Dê uma olhada no código fonte utilizado nessa página, pois ele tem muitos comentários!</b></p></div><div class="COL2">
+<p>Scripts adicionais utilizados:<br />
+<a href="Vector3.js">Vector3.js</a><br />
+<a href="Matrix4.js">Matrix4.js</a><br />
+<a href="Program.js">Program.js</a><br />
+<a href="Transformation.js">Transformation.js</a></p>
+<p>Shaders utilizados:<br />
+<a href="FS.txt">Fragment shader</a><br />
+<a href="VS.txt">Vertex shader</a></p></div></div>
+
+<h1>Como e onde testar</h1>
+<p>Chrome 9+ <span class="NOTE">(about:flags)</span><br />
+Firefox 4+ <span class="NOTE">(about:config)</span><br />
+Opera 12+ <span class="NOTE">(about:gpu e about:config ver mais <a href="http://my.opera.com/desktopteam/blog/2011/10/12/hardware-acceleration">aqui</a>)</span><br />
+Safari 5.1 <span class="NOTE">(Mac OS! -> menu Develop -> Enable WebGL)</span><br />
+Internet Explorer 11+ <span class="NOTE">(Aparentemente existe um plugin chamado <a href="http://iewebgl.com">IEWebGL</a> que acrescenta suporte a outras versões, mas nunca testei)</span>
+</p>
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

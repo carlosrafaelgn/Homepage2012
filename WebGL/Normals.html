@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head data-nores="1">
+	<meta charset="utf-8" />
+	<script type="text/javascript">//<![CDATA[
+		"use strict"; (function () { var vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); vp.setAttribute("content", ((screen.availWidth >= 864) || (screen.availHeight >= 864)) ? "width=device-width, initial-scale=1" : "width=864"); document.head.appendChild(vp); })(); //]]>
+	</script>
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>WebGL - Normais e Iluminação</title>
+	<link rel="stylesheet" type="text/css" href="/mainnr.css" />
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript" charset="utf-8" src="Vector3.js"></script>
+	<script type="text/javascript" charset="utf-8" src="Matrix4.js"></script>
+	<script type="text/javascript" charset="utf-8" src="Program.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	var CAMERA_X = 0,
+	CAMERA_Y = -10,
+	CAMERA_Z = -40,
+	LIGHT_Y = 10,
+	LIGHT_RADIUS = 20,
+	LIGHT_SIZE = .25,
+
+	frameCanvas, gl, program, programs,
+	mat, projectionMatrix,
+	showNormals, showOuter, showInner, showHidden, showAuxiliary, usePointLight, rotateXY, lastX, lastY, moveMode,
+	lightRY, lightPosition, lightDummy, lightDirectionDummy, lightAttenuation, cameraRX, cameraRY,
+	cylinder, txtDiffuse, txtAmbient, txtRange, chkPointLight, chkMoveLight;
+
+	function setNormal(destinationArray, destinationIndex, source) {
+		//soma o novo normal ao normal já existente
+		destinationArray[destinationIndex] += source[0];
+		destinationArray[destinationIndex + 1] += source[1];
+		destinationArray[destinationIndex + 2] += source[2];
+
+		//normaliza o normal para garatir que permaneça com comprimento 1
+		Vector3.normalizeArray(destinationArray, destinationIndex);
+
+		return destinationArray;
+	}
+
+	function computeNormals(vertices, normals, indices, rectangleCount) {
+		var vA, vB, vC, n = [0, 0, 0], n1 = [0, 0, 0], n2 = [0, 0, 0], i = 0;
+
+		//calcula o normal de cada uma das faces dadas
+		while (rectangleCount) {
+			//pega os três primeiros vértices que formam o retângulo
+			//(um retângulo é formado por dois triângulos, ou seja, utiliza seis índices)
+			vA = Vector3.fromArray(vertices, 4 * indices[i]);
+			vB = Vector3.fromArray(vertices, 4 * indices[i + 1]);
+			vC = Vector3.fromArray(vertices, 4 * indices[i + 2]);
+
+			//calcula os dois vetores resultantes entre os 3 pontos
+			//para poder calcular o produto vetorial
+			//sempre em sentido CCW, por isso a primeira vértice é comum!
+			n1[0] = vB[0] - vA[0];
+			n1[1] = vB[1] - vA[1];
+			n1[2] = vB[2] - vA[2];
+
+			n2[0] = vC[0] - vA[0];
+			n2[1] = vC[1] - vA[1];
+			n2[2] = vC[2] - vA[2];
+
+			//calcula o produto vetorial de modo que: n = n1 x n2, assim, n passa
+			//a ser perpendicular ao plano formado pelos vértices vA, vB e vC
+			//(o quarto vértice do retângulo pode ser ignorado por estarmos supondo
+			//que o retêngulo é plano)
+			n[0] = (n1[1]*n2[2]) - (n1[2]*n2[1]);
+			n[1] = (n1[2]*n2[0]) - (n1[0]*n2[2]);
+			n[2] = (n1[0]*n2[1]) - (n1[1]*n2[0]);
+
+			//ao final, normaliza o normal para garatir que tenha comprimento 1
+			//(apesar do setNormal já normalizar, se passar um vetor não-normal,
+			//ele terá um peso muito maior do que o vetor que está lá, logo, o
+			//cálculo do vetor normal final será distorcido!)
+			Vector3.normalize(n);
+
+			//depois de calcular, attribui o normal calulado aos vértices
+			setNormal(normals, 3 * indices[i    ], n);
+			setNormal(normals, 3 * indices[i + 1], n);
+			setNormal(normals, 3 * indices[i + 2], n);
+			setNormal(normals, 3 * indices[i + 5], n);
+
+			i += 6;
+			rectangleCount--;
+		}
+
+		return vertices;
+	}
+
+	function createCylinder() {
+		var CYL_SIDES = 64,
+		CYL_ROWS = 2,
+		CYL_HEI = 20,
+		CYL_VERT_COUNT = (CYL_SIDES * CYL_ROWS),
+		CYL_IDX_COUNT = ((CYL_ROWS - 1) * 2 * CYL_SIDES * 3),
+		CYL_RADIUS = 5,
+		CYL_NORMAL_VERT_COUNT = 2 * CYL_VERT_COUNT,
+		NORMAL_LEN = 2.5,
+		c, s, r, i, idx = 0, co, si, y,
+		auxNormVertices = new Float32Array(4 * CYL_NORMAL_VERT_COUNT),
+		auxNormColors = new Float32Array(4 * 2 * CYL_VERT_COUNT),
+		vertices = new Float32Array(4 * CYL_VERT_COUNT),
+		outerNormals = new Float32Array(3 * CYL_VERT_COUNT),
+		innerNormals = new Float32Array(3 * CYL_VERT_COUNT),
+		outerIndices = new Uint8Array(CYL_IDX_COUNT),
+		innerIndices = new Uint8Array(CYL_IDX_COUNT);
+
+		//calcula os índices do cilindro
+		for (r = 0; r < (CYL_ROWS - 1); r++) {
+			for (s = 0; s < (CYL_SIDES - 1); s++) {
+				i = (r * CYL_SIDES) + s;
+
+				outerIndices[idx    ] = i;
+				outerIndices[idx + 1] = i + 1;
+				outerIndices[idx + 2] = i + 1 + CYL_SIDES;
+
+				idx += 3;
+
+				outerIndices[idx    ] = i;
+				outerIndices[idx + 1] = i + 1 + CYL_SIDES;
+				outerIndices[idx + 2] = i + CYL_SIDES;
+
+				idx += 3;
+			}
+
+			//as últimas 2 faces da linha tocam as do começo
+
+			i = (r * CYL_SIDES) + s;
+
+			outerIndices[idx    ] = i;
+			outerIndices[idx + 1] = i - (CYL_SIDES - 1);
+			outerIndices[idx + 2] = i - (CYL_SIDES - 1) + CYL_SIDES;
+
+			idx += 3;
+
+			outerIndices[idx    ] = i;
+			outerIndices[idx + 1] = i - (CYL_SIDES - 1) + CYL_SIDES;
+			outerIndices[idx + 2] = i + CYL_SIDES;
+
+			idx += 3;
+		}
+
+		//copia os índices externos para os internos, invertendo a ordem dos vértices (antes era externo, agora é interno)
+		for (i = 0; i < CYL_IDX_COUNT; i += 3) {
+			innerIndices[i    ] = outerIndices[i    ];
+			innerIndices[i + 1] = outerIndices[i + 2];
+			innerIndices[i + 2] = outerIndices[i + 1];
+		}
+
+		//calcula apenas a primeira linha dos vértices do cilindro
+		for (i = 0; i < CYL_SIDES; i++) {
+			if (i < (CYL_SIDES / 2))
+				si = (Math.sin(2 * Math.PI * i / CYL_SIDES) * 0.5) + (Math.sin(1.5 * 2 * Math.PI * i / (CYL_SIDES / 2)) * 0.25);
+			else
+				si = Math.sin(2 * Math.PI * i / CYL_SIDES);
+
+			co = Math.cos(2 * Math.PI * i / CYL_SIDES);
+
+			vertices[(4 * i)    ] = (co * CYL_RADIUS); //x
+			vertices[(4 * i) + 1] = 0; //y
+			vertices[(4 * i) + 2] = (-si * CYL_RADIUS); //z
+			vertices[(4 * i) + 3] = 1; //w
+		}
+
+		//cria as outras linhas partindo da primeira, alterando apenas sua altura
+		for (r = 1; r < CYL_ROWS; r++) {
+			y = (r * CYL_HEI) / (CYL_ROWS - 1);
+
+			for (s = 0, i = r * CYL_SIDES; i < ((r * CYL_SIDES) + CYL_SIDES); s++, i++)
+			{
+				//copia tudo, alterando o y
+				vertices[(4 * i)    ] = vertices[(4 * s)    ]; //x
+				vertices[(4 * i) + 1] = y; //y
+				vertices[(4 * i) + 2] = vertices[(4 * s) + 2]; //z
+				vertices[(4 * i) + 3] = vertices[(4 * s) + 3]; //w
+			}
+		}
+
+		//calcula os normais
+		computeNormals(vertices, outerNormals, outerIndices, CYL_IDX_COUNT / 6);
+
+		//copia os normais da parte externa para a parte interna, porém inverte o sentido (antes era externo, agora é interno)
+		for (i = 0; i < CYL_VERT_COUNT; i++) {
+			innerNormals[(3 * i)    ] = -outerNormals[(3 * i)    ];
+			innerNormals[(3 * i) + 1] = -outerNormals[(3 * i) + 1];
+			innerNormals[(3 * i) + 2] = -outerNormals[(3 * i) + 2];
+		}
+
+		//cria a exibição auxiliar dos normais dos vértices
+		for (i = 0; i < CYL_SIDES; i++) {
+			auxNormVertices[(8 * i)    ] = vertices[(4 * i)    ]; //x
+			auxNormVertices[(8 * i) + 1] = 0; //y
+			auxNormVertices[(8 * i) + 2] = vertices[(4 * i) + 2]; //z
+			auxNormVertices[(8 * i) + 3] = 1; //w
+			auxNormVertices[(8 * i) + 4] = vertices[(4 * i)    ] + (NORMAL_LEN * outerNormals[(3 * i)    ]); //x
+			auxNormVertices[(8 * i) + 5] = 0; //y
+			auxNormVertices[(8 * i) + 6] = vertices[(4 * i) + 2] + (NORMAL_LEN * outerNormals[(3 * i) + 2]); //z
+			auxNormVertices[(8 * i) + 7] = 1; //w
+			auxNormColors[(8 * i)] = 0; //r
+			auxNormColors[(8 * i) + 1] = 0; //g
+			auxNormColors[(8 * i) + 2] = 0; //b
+			auxNormColors[(8 * i) + 3] = 1; //a
+			auxNormColors[(8 * i) + 4] = 1; //r
+			auxNormColors[(8 * i) + 5] = 0.75; //g
+			auxNormColors[(8 * i) + 6] = 0.2; //b
+			auxNormColors[(8 * i) + 7] = 1; //a
+		}
+
+		//cria as outras linhas partindo da primeira, alterando apenas sua altura
+		for (r = 1; r < CYL_ROWS; r++) {
+			y = (r * CYL_HEI) / (CYL_ROWS - 1);
+
+			for (s = 0, i = r * CYL_SIDES; i < ((r * CYL_SIDES) + CYL_SIDES); s++, i++) {
+				//copia tudo, alterando o y
+				auxNormVertices[(8 * i)    ] = auxNormVertices[(8 * s)    ]; //x
+				auxNormVertices[(8 * i) + 1] = y; //y
+				auxNormVertices[(8 * i) + 2] = auxNormVertices[(8 * s) + 2]; //z
+				auxNormVertices[(8 * i) + 3] = 1; //w
+				auxNormVertices[(8 * i) + 4] = auxNormVertices[(8 * s) + 4]; //x
+				auxNormVertices[(8 * i) + 5] = y; //y
+				auxNormVertices[(8 * i) + 6] = auxNormVertices[(8 * s) + 6]; //z
+				auxNormVertices[(8 * i) + 7] = 1; //w
+				auxNormColors[(8 * i)    ] = auxNormColors[(8 * s)    ]; //r
+				auxNormColors[(8 * i) + 1] = auxNormColors[(8 * s) + 1]; //g
+				auxNormColors[(8 * i) + 2] = auxNormColors[(8 * s) + 2]; //b
+				auxNormColors[(8 * i) + 3] = auxNormColors[(8 * s) + 3]; //a
+				auxNormColors[(8 * i) + 4] = auxNormColors[(8 * s) + 4]; //r
+				auxNormColors[(8 * i) + 5] = auxNormColors[(8 * s) + 5]; //g
+				auxNormColors[(8 * i) + 6] = auxNormColors[(8 * s) + 6]; //b
+				auxNormColors[(8 * i) + 7] = auxNormColors[(8 * s) + 7]; //a
+			}
+		}
+
+		//cria os buffers
+		c = {
+			vertices: gl.createBuffer(),
+			outerNormals: gl.createBuffer(),
+			innerNormals: gl.createBuffer(),
+			outerIndices: gl.createBuffer(),
+			innerIndices: gl.createBuffer(),
+			auxNormVertices: gl.createBuffer(),
+			auxNormColors: gl.createBuffer(),
+			indexCount: CYL_IDX_COUNT,
+			auxNormalVertexCount: CYL_NORMAL_VERT_COUNT
+		};
+
+		//copia os dados dos arrays locais para os buffers
+		gl.bindBuffer(gl.ARRAY_BUFFER, c.vertices);
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, c.outerNormals);
+		gl.bufferData(gl.ARRAY_BUFFER, outerNormals, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, c.innerNormals);
+		gl.bufferData(gl.ARRAY_BUFFER, innerNormals, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, c.auxNormVertices);
+		gl.bufferData(gl.ARRAY_BUFFER, auxNormVertices, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, c.auxNormColors);
+		gl.bufferData(gl.ARRAY_BUFFER, auxNormColors, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, c.outerIndices);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, outerIndices, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, c.innerIndices);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, innerIndices, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+		return c;
+	}
+
+	function createLightDummy() {
+		var vertices = new Float32Array([
+			0, LIGHT_SIZE, 0,
+			-LIGHT_SIZE, 0, 0,
+			0, -LIGHT_SIZE, 0,
+			LIGHT_SIZE, 0, 0
+		]),
+		indices = new Uint8Array([
+			0, 1, 2,
+			2, 3, 0
+		]),
+		d = {
+			vertices: gl.createBuffer(),
+			indices: gl.createBuffer(),
+			indexCount: (2 * 3)
+		};
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, d.vertices);
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, d.indices);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+		return d;
+	}
+
+	function createLightDirectionDummy() {
+		var vertices = new Float32Array([
+			LIGHT_RADIUS, 0, 0,
+			0, 0, -30 * LIGHT_SIZE,
+			0, 0, 30 * LIGHT_SIZE/*,
+			-LIGHT_RADIUS, 0, 0,
+			0, 0, 30 * LIGHT_SIZE,
+			0, 0, -30 * LIGHT_SIZE,*/
+		]),
+		colors = new Float32Array([
+			1, 0, 0, 0.7,
+			1, 0, 0, 0,
+			1, 0, 0, 0/*,
+			0, 0, 0.8, 0.7,
+			0, 0, 0.8, 0,
+			0, 0, 0.8, 0*/
+		]),
+		indices = new Uint8Array([
+			0, 1, 2/*,
+			3, 4, 5*/
+		]),
+		d = {
+			vertices: gl.createBuffer(),
+			colors: gl.createBuffer(),
+			indices: gl.createBuffer(),
+			indexCount: 3 //6
+		};
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, d.vertices);
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, d.colors);
+		gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, d.indices);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+		return d;
+	}
+
+	function txtDiffuse_ValueChanged(model, value) {
+		program.diffuseLightIntensity(value / 100);
+		return drawFrame();
+	}
+
+	function txtAmbient_ValueChanged(model, value) {
+		program.ambientLightIntensity(value / 100);
+		return drawFrame();
+	}
+
+	function txtRange_ValueChanged(model, value) {
+		if (usePointLight) {
+			program.lightRange(value / 10);
+			return drawFrame();
+		}
+		return true;
+	}
+
+	function chkShowNormal_CheckedChanged(model, checked) {
+		showNormals = checked;
+		return drawFrame();
+	}
+
+	function chkShowOuter_CheckedChanged(model, checked) {
+		showOuter = checked;
+		return drawFrame();
+	}
+
+	function chkShowInner_CheckedChanged(model, checked) {
+		showInner = checked;
+		return drawFrame();
+	}
+
+	function chkShowHidden_CheckedChanged(model, checked) {
+		showHidden = checked;
+		if (showHidden)
+			gl.disable(gl.CULL_FACE);
+		else
+			gl.enable(gl.CULL_FACE);
+		return drawFrame();
+	}
+
+	function chkShowAuxiliary_CheckedChanged(model, checked) {
+		showAuxiliary = checked;
+		return drawFrame();
+	}
+
+	function chkTransparentBG_CheckedChanged(model, checked) {
+		gl.clearColor(0, 0, 0, checked ? 0 : 1);
+		return drawFrame();
+	}
+
+	function chkRotateXY_CheckedChanged(model, checked) {
+		rotateXY = checked;
+		return drawFrame();
+	}
+
+	function chkPointLight_CheckedChanged(model, checked) {
+		//atualiza as configurações do novo programa
+		usePointLight = checked;
+		program = programs[checked ? 1 : 0];
+		program.use();
+		//atualiza a iluminação
+		program.diffuseLightIntensity(txtDiffuse.getValue() / 100);
+		program.ambientLightIntensity(txtAmbient.getValue() / 100);
+		//muda a posição x e z da luz apenas para melhorar o efeito da Point Light
+		if (usePointLight) {
+			lightPosition[0] *= 0.5;
+			lightPosition[2] *= 0.5;
+			program.lightPosition(lightPosition[0] + CAMERA_X, lightPosition[1] + CAMERA_Y, lightPosition[2] + CAMERA_Z);
+			//atualiza as propriedades da Point Light
+			program.lightRange(txtRange.getValue() / 10);
+			program.lightAttenuation(lightAttenuation);
+		} else {
+			lightPosition[0] *= 2;
+			lightPosition[2] *= 2;
+			var v = Vector3.clone(lightPosition);
+			v[1] = 0; //remove o y
+			Vector3.normalize(v);
+			program.lightDirection(v[0], 0, v[2]);
+		}
+		return drawFrame();
+	}
+
+	function chkPointLightAttenuation_CheckedChanged(model, checked) {
+		if (usePointLight) {
+			lightAttenuation = (checked ? 0 : 1);
+			program.lightAttenuation(lightAttenuation);
+			return drawFrame();
+		}
+		return true;
+	}
+
+	function canvas_MouseDown(e) {
+		if (moveMode <= 0) {
+			lastX = e.clientX;
+			lastY = e.clientY;
+			moveMode = (chkMoveLight ? (chkMoveLight.isChecked() ? 2 : 1) : (e.button ? 2 : 1));
+			attachMouse(document, "mousemove", document_MouseMove, true);
+			attachMouse(document, "mouseup", document_MouseUp, true);
+		}
+		return cancelEvent(e);
+	}
+
+	function document_MouseMove(e) {
+		var p = Math.PI * 2, x, z;
+		switch (moveMode) {
+			case 1:
+				//camera
+				cameraRX += (e.clientY - lastY) * 0.0078125;
+				cameraRY += (e.clientX - lastX) * 0.0078125;
+
+				lastX = e.clientX;
+				lastY = e.clientY;
+
+				while (cameraRX >= p)
+					cameraRX -= p;
+				while (cameraRX < 0)
+					cameraRX += p;
+
+				while (cameraRY >= p)
+					cameraRY -= p;
+				while (cameraRY < 0)
+					cameraRY += p;
+				break;
+
+			case 2:
+				//light
+				lightRY += (e.clientX - lastX) * 0.00390625;
+				lightPosition[1] -= (e.clientY - lastY) * 0.0625;
+				if (lightPosition[1] < 0) lightPosition[1] = 0;
+				else if (lightPosition[1] >= (2 * LIGHT_Y)) lightPosition[1] = (2 * LIGHT_Y);
+
+				lastX = e.clientX;
+				lastY = e.clientY;
+
+				while (lightRY >= p)
+					lightRY -= p;
+				while (lightRY < 0)
+					lightRY += p;
+
+				x = Math.cos(lightRY);
+				z = -Math.sin(lightRY);
+				//ver o comentário no main, explicando a relação entre lightPosition e lightDirection!
+				if (usePointLight) {
+					lightPosition[0] = x * 0.5 * LIGHT_RADIUS;
+					lightPosition[2] = z * 0.5 * LIGHT_RADIUS;
+					program.lightPosition(lightPosition[0] + CAMERA_X, lightPosition[1] + CAMERA_Y, lightPosition[2] + CAMERA_Z);
+				} else {
+					lightPosition[0] = x * LIGHT_RADIUS;
+					lightPosition[2] = z * LIGHT_RADIUS;
+					//não precisa normalizar nada aqui, pois os valores já vêm de um par casado seno/cosseno,
+					//ou seja, seu módulo já é 1
+					program.lightDirection(x, 0, z);
+				}
+				break;
+
+			default:
+				return cancelEvent(e);
+		}
+		drawFrame();
+		return cancelEvent(e);
+	}
+
+	function document_MouseDown(e) {
+		moveMode = -1;
+		return true;
+	}
+
+	function document_ContextMenu(e) {
+		return (moveMode < 0 ? true : cancelEvent(e));
+	}
+
+	function document_MouseUp(e) {
+		moveMode = 0;
+		detachMouse(document, "mousemove", document_MouseMove, true);
+		detachMouse(document, "mouseup", document_MouseUp, true);
+		return cancelEvent(e);
+	}
+
+	function main() {
+		var chk;
+		showNormals = false;
+		showOuter = true;
+		showInner = true;
+		showHidden = false;
+		showAuxiliary = true;
+		rotateXY = true;
+		usePointLight = false;
+		lightAttenuation = 0;
+		txtDiffuse = new NumericUpDown(0, 100, 80, false);
+		txtDiffuse.replaceControl($("txtDiffuse"), 5.5, 3);
+		txtDiffuse.onValueChanged.attach(txtDiffuse_ValueChanged);
+		Elem.setLabelledBy($("lblTxtDiffuse"), $("txtDiffuse"));
+		txtAmbient = new NumericUpDown(0, 100, 20, false);
+		txtAmbient.replaceControl($("txtAmbient"), 5.5, 3);
+		txtAmbient.onValueChanged.attach(txtAmbient_ValueChanged);
+		Elem.setLabelledBy($("lblTxtAmbient"), $("txtAmbient"));
+		txtRange = new NumericUpDown(1, 9999, 400, false);
+		txtRange.replaceControl($("txtRange"), 6.5, 4);
+		txtRange.onValueChanged.attach(txtRange_ValueChanged);
+		Elem.setLabelledBy($("lblTxtRange"), $("txtRange"));
+		chk = new CheckBox(showNormals, "Exibir vetores normais do objeto externo");
+		chk.replaceControl($("chkShowNormal"), true);
+		chk.onCheckedChanged.attach(chkShowNormal_CheckedChanged);
+		chk = new CheckBox(showOuter, "Exibir objeto externo");
+		chk.replaceControl($("chkShowOuter"), true);
+		chk.onCheckedChanged.attach(chkShowOuter_CheckedChanged);
+		chk = new CheckBox(showInner, "Exibir objeto interno");
+		chk.replaceControl($("chkShowInner"), true);
+		chk.onCheckedChanged.attach(chkShowInner_CheckedChanged);
+		chk = new CheckBox(showHidden, "Exibir faces escondidas");
+		chk.replaceControl($("chkShowHidden"), true);
+		chk.onCheckedChanged.attach(chkShowHidden_CheckedChanged);
+		chk = new CheckBox(showAuxiliary, "Exibir elementos auxiliares");
+		chk.replaceControl($("chkShowAuxiliary"), true);
+		chk.onCheckedChanged.attach(chkShowAuxiliary_CheckedChanged);
+		chk = new CheckBox(false, "Fundo transparente");
+		chk.replaceControl($("chkTransparentBG"), true);
+		chk.onCheckedChanged.attach(chkTransparentBG_CheckedChanged);
+		chk = new CheckBox(rotateXY, "Aplicar rotação primeiro em X, depois em Y");
+		chk.replaceControl($("chkRotateXY"), true);
+		chk.onCheckedChanged.attach(chkRotateXY_CheckedChanged);
+		chkPointLight = new CheckBox(false, "Utilizar Point Light pixel a pixel");
+		chkPointLight.replaceControl($("chkPointLight"), true);
+		chkPointLight.onCheckedChanged.attach(chkPointLight_CheckedChanged);
+		chk = new CheckBox(true, "Utilizar atenuação conforme o alcance da Point Light");
+		chk.replaceControl($("chkPointLightAttenuation"), true);
+		chk.onCheckedChanged.attach(chkPointLightAttenuation_CheckedChanged);
+
+		if (_isTouch) {
+			chkMoveLight = new CheckBox(false, "Mover Luz");
+			chkMoveLight.replaceControl($("chkMoveLight"), true);
+		}
+
+		FloatingPopup.prepareButtonBase($("mnuOpt"), $("btnOpt"), false);
+		chk = $("mnuOpt");
+		chk.parentNode.removeChild(chk);
+		document.body.appendChild(chk);
+
+		lastX = 0;
+		lastY = 0;
+		moveMode = 0;
+		lightRY = 0;
+		lightPosition = [LIGHT_RADIUS, LIGHT_Y, 0];
+		cameraRX = 0;
+		cameraRY = 0;
+		frameCanvas = $("frameCanvas");
+		attachMouse(frameCanvas, "mousedown", canvas_MouseDown);
+		attachObserver(frameCanvas, "contextmenu", cancelEvent);
+		attachMouse(document, "mousedown", document_MouseDown);
+		attachObserver(document, "contextmenu", document_ContextMenu);
+
+		//gl = Program.prototype.createGL(frameCanvas, { antialias: false });
+		gl = Program.prototype.createGL(frameCanvas);
+		if (!gl) {
+			Popup.showError("Aparentemente seu browser não oferece suporte à tecnologia WebGL!");
+			return false;
+		}
+		//também poderia fazer das seguintes formas:
+		//
+		//<script id="_vertexShader" type="x-shader/x-vertex" src="..."> Vazio ...
+		//<script id="_fragmentShader" type="x-shader/x-fragment" src="..."> Vazio ...
+		//new Program(gl, "_vertexShader", "_fragmentShader");
+		//
+		//<script id="_vertexShader" type="x-shader/x-vertex"> Código! ...
+		//<script id="_fragmentShader" type="x-shader/x-fragment"> Código! ...
+		//new Program(gl, "_vertexShader", "_fragmentShader");
+		//
+		programs = [new Program(gl, "VS.txt", "FS.txt", true, true),
+					new Program(gl, "VSPL.txt", "FSPL.txt", true, true)];
+		//configura a iluminação inicial
+		program = programs[0];
+		program.use();
+		program.diffuseLightIntensity(0.8);
+		program.ambientLightIntensity(0.2);
+
+		//habilita os atributos do vertexShader
+		gl.enableVertexAttribArray(0); //pos
+		gl.enableVertexAttribArray(1); //normal
+		gl.disableVertexAttribArray(2); //color
+
+		//configura a cor do fundo da cena
+		gl.clearColor(0, 0, 0, 1);
+
+		//habilita os testes de profundidade, fazendo com que os polígonos de trás não apareçam
+		//à frente dos polígonos que estão efetivamente na frente (novo z deve ser <= ao z
+		//presente no pixel, para desenhar)
+		gl.depthFunc(gl.LEQUAL);
+		gl.depthRange(0, 1); //valor para a parte da frente, valor para a parte de trás
+		gl.depthMask(true);
+		gl.enable(gl.DEPTH_TEST);
+		gl.clearDepth(1);
+
+		//define que deve-se determinar a parte da "frente" de uma face utilizando os vértices da face em sentido anti-horário
+		gl.frontFace(gl.CCW);
+		//habilita a opção que descarta (não desenha) faces ocultas, e especifica que as faces ocultas são as de trás
+		gl.enable(gl.CULL_FACE);
+		gl.cullFace(gl.BACK);
+
+		//confiura o alpha blend para poder funcionar a transparência do lightDirectionDummy
+		gl.disable(gl.BLEND);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+		//desabilita as opções indesejadas (estão aqui só para mostrar que elas existem)
+		gl.disable(gl.DITHER); //melhora a qualidade da saída, criando um efeito de pontilhado para simular cores intermediárias
+		gl.disable(gl.STENCIL_TEST); //o stencil buffer é um buffer adicional, utilizado apenas para efeitos especiais/testes
+		gl.disable(gl.SCISSOR_TEST); //a scissor define uma área retangular, dentro da viewport, que delimita onde pode-se desenhar
+
+		//o uniform lightDirection deveria ser o inverso (-x, -y, -z) da versão
+		//normalizada da direção da luz, para fazer com que o produto escalar funcionasse OK
+		//aqui, estamos definindo lightDirection como sendo igual a lightPosition, por causa
+		//de uma incrível coincidência :)
+		//
+		//direção = destino da luz - posição da luz
+		//
+		//como estamos considerando o destino da luz como (0, 0, 0), então
+		//direção = (0, 0, 0) - posição = -posição
+		//mas como o shader precisa de -direção, então temos:
+		//se: direção = -posição
+		//logo: -direção = --posição = posição!!!
+		program.lightDirection(1, 0, 0);
+
+		cylinder = createCylinder();
+		lightDummy = createLightDummy();
+		lightDirectionDummy = createLightDirectionDummy();
+
+		//cria a matriz temporária mat, e a matriz de projeção
+		mat = new Matrix4(true);
+		projectionMatrix = new Matrix4(true);
+		projectionMatrix.perspectiveFovIdentity(50, frameCanvas.width / frameCanvas.height, 1, 80);
+
+		//define a vista da cena como sendo o canvas inteiro
+		gl.viewport(0, 0, frameCanvas.width, frameCanvas.height);
+
+		drawFrame();
+
+		return true;
+	}
+
+	function drawFrame() {
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+		gl.enableVertexAttribArray(1); //normal
+		gl.disableVertexAttribArray(2); //color
+		program.useLight(1);
+
+		//as matrizes aplicadas aos normais NÃO podem conter nenhum tipo de scale, shear ou translation!
+		//o shader da Point Light precisa das matrizes de projeção e modelo/vista separadas!
+		if (rotateXY) {
+			if (usePointLight) {
+				program.projectionMatrix(projectionMatrix);
+				program.modelViewMatrix(mat.translateIdentity(CAMERA_X, CAMERA_Y, CAMERA_Z).rotateY(cameraRY).rotateX(cameraRX));
+			} else {
+				program.modelViewProjectionMatrix(mat.copy(projectionMatrix).translate(CAMERA_X, CAMERA_Y, CAMERA_Z).rotateY(cameraRY).rotateX(cameraRX));
+			}
+			//
+			//para criar a matriz normal, deve-se ignorar as translações, pois os normais
+			//devem ser tratados como direções e não como pontos
+			//assim, para criar a matriz normal, bastaria replicar as transformações de rotação,
+			//ignorando as transformações de translação
+			//
+			//program.normalMatrix(mat.rotateYIdentity(cameraRY).rotateX(cameraRX));
+			//
+			//contudo, caso seja aplicada uma transformação de redimensionamento, o método de
+			//replicar as transformações não dará o resultado esperado
+			//logo, para um caso geral, sem se preocupar com quais transformações foram
+			//aplicadas à matriz, deve-se utilizar o método apropriado para extrair a
+			//matriz normal de outra matriz: calculando a transposta da inversa!
+			//(método makeNormalMatrix)
+			//ver mais aqui: http://www.songho.ca/opengl/gl_normaltransform.html
+			//
+			//UMA RESSALVA: ao utilizar esse método, assume-se que a matriz ainda NÃO foi
+			//transformada pela PROJEÇÃO! se a projeção já tiver sido aplicada, coisas
+			//feias ocorrerão :)
+			//
+			//program.normalMatrix(mat.makeNormalMatrix());
+			//
+			program.normalMatrix(mat.rotateYIdentity(cameraRY).rotateX(cameraRX));
+		} else {
+			if (usePointLight) {
+				program.projectionMatrix(projectionMatrix);
+				program.modelViewMatrix(mat.translateIdentity(CAMERA_X, CAMERA_Y, CAMERA_Z).rotateX(cameraRX).rotateY(cameraRY));
+			} else {
+				program.modelViewProjectionMatrix(mat.copy(projectionMatrix).translate(CAMERA_X, CAMERA_Y, CAMERA_Z).rotateX(cameraRX).rotateY(cameraRY));
+			}
+			//ver nota acima...
+			program.normalMatrix(mat.rotateXIdentity(cameraRX).rotateY(cameraRY));
+		}
+
+		if (showInner) {
+			//objeto interno (verde)
+			gl.vertexAttrib4f(2, 0.3, 0.5, 0.2, 1);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, cylinder.vertices);
+			gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, cylinder.innerNormals);
+			gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cylinder.innerIndices);
+
+			gl.drawElements(gl.TRIANGLES, cylinder.indexCount, gl.UNSIGNED_BYTE, 0);
+		}
+
+		if (showOuter) {
+			//objeto externo (azul)
+			gl.vertexAttrib4f(2, 0, 0.5, 1, 1);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, cylinder.vertices);
+			gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, cylinder.outerNormals);
+			gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cylinder.outerIndices);
+
+			gl.drawElements(gl.TRIANGLES, cylinder.indexCount, gl.UNSIGNED_BYTE, 0);
+		}
+
+		//desenha os elementos auxiliares da cena
+		gl.disableVertexAttribArray(1); //normal
+		program.useLight(0);
+
+		if (showNormals) {
+			gl.enableVertexAttribArray(2); //color
+
+			//normais
+			gl.bindBuffer(gl.ARRAY_BUFFER, cylinder.auxNormVertices);
+			gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, cylinder.auxNormColors);
+			gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 0, 0);
+
+			gl.drawArrays(gl.LINES, 0, cylinder.auxNormalVertexCount);
+
+			gl.disableVertexAttribArray(2); //color
+		}
+
+		if (showAuxiliary) {
+			if (usePointLight) {
+				//posição da luz
+				program.modelViewMatrix(mat.translateIdentity(lightPosition[0] + CAMERA_X, lightPosition[1] + CAMERA_Y, lightPosition[2] + CAMERA_Z));
+
+				gl.vertexAttrib4f(2, 1, 0, 0, 1);
+
+				gl.bindBuffer(gl.ARRAY_BUFFER, lightDummy.vertices);
+				//isso mostra que também funciona com apenas 3 valores, o quarto (w) utilizará o valor padrão
+				gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lightDummy.indices);
+
+				gl.drawElements(gl.TRIANGLES, lightDummy.indexCount, gl.UNSIGNED_BYTE, 0);
+			} else {
+				//direção da luz
+				program.modelViewProjectionMatrix(mat.copy(projectionMatrix).translate(CAMERA_X, CAMERA_Y, CAMERA_Z).rotateY(lightRY));
+
+				gl.enableVertexAttribArray(2); //color
+				gl.enable(gl.BLEND);
+
+				gl.bindBuffer(gl.ARRAY_BUFFER, lightDirectionDummy.vertices);
+				gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+				gl.bindBuffer(gl.ARRAY_BUFFER, lightDirectionDummy.colors);
+				gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 0, 0);
+
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lightDirectionDummy.indices);
+
+				gl.drawElements(gl.TRIANGLES, lightDirectionDummy.indexCount, gl.UNSIGNED_BYTE, 0);
+				gl.disable(gl.BLEND);
+			}
+		}
+
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0" style="min-width: 800px;"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div class="TLB _MB4" role="toolbar">
+<div class="BTN BTNTLB" id="btnOpt">Opções &#9660;</div>
+<div class="TLBSEP"></div>
+
+<div class="LBL _MR4 TXTLBL" id="lblTxtDiffuse">Luz difusa (%)</div><div id="txtDiffuse"></div>
+<div class="LBL _MR4 TXTLBL" id="lblTxtAmbient">Luz ambiente (%)</div><div id="txtAmbient"></div>
+<div class="LBL _MR4 TXTLBL" id="lblTxtRange">Alcance da Point Light (/ 10)</div><div id="txtRange"></div>
+<div id="chkMoveLight"></div>
+
+<div id="mnuOpt" class="ITCONT FPOP _HID _PA4">
+	<div id="chkShowNormal"></div>
+	<div id="chkShowOuter"></div>
+	<div id="chkShowInner"></div>
+	<div id="chkShowHidden"></div>
+	<div id="chkShowAuxiliary"></div>
+	<div id="chkTransparentBG"></div>
+	<div id="chkRotateXY"></div>
+	<div id="chkPointLight"></div>
+	<div id="chkPointLightAttenuation"></div>
+</div>
+
+</div>
+
+<canvas id="frameCanvas" width="750" height="500" style="margin: auto; padding: 0px; display: block; cursor: default;"></canvas>
+
+<h1>Funcionamento</h1>
+<div class="COLHLDR"><div class="COL"><p>Clique com o botão esquerdo e arraste para alterar a rotação do objeto.<br />
+Clique com o botão direito e arraste para alterar a iluminação.</p></div><div class="COL2">
+<p>A altura do objeto da cena é 20. Quando a opção "Utilizar Point Light pixel a pixel" estiver marcada, a distância horizontal entre o centro o objeto e o ponto luminoso é 10.</p></div></div>
+
+<h1>Informações úteis</h1>
+<p><b>Dê uma olhada no código fonte utilizado nessa página, pois ele tem muitos comentários!</b></p>
+<p>Scripts adicionais utilizados:<br />
+<a href="Vector3.js">Vector3.js</a><br />
+<a href="Matrix4.js">Matrix4.js</a><br />
+<a href="Program.js">Program.js</a></p>
+<p>Shaders utilizados:<br />
+<a href="FS.txt">Fragment shader</a><br />
+<a href="FSPL.txt">Fragment shader - Point Light</a><br />
+<a href="VS.txt">Vertex shader</a><br />
+<a href="VSPL.txt">Vertex shader - Point Light</a></p>
+
+<h1>Sobre a iluminação</h1>
+<div class="COLHLDR"><div class="COL"><p>Quando a opção "Utilizar Point Light pixel a pixel" estiver desmarcada, a iluminação será calculada ignorando a real posição da fonte da iluminação, considerando que ela esteja infinitamente distante, de modo a fazer com que apenas sua direção importe. Isso é basicamente a relação entre nós e o Sol, e é conhecido como "luz direcional" (Directional Light). A interação da luz com o objeto será calculada para cada vértice do objeto. Essa é a forma mais comum de iluminação utilizada, por fornecer um resultado bem aceitável com um custo computacional relativamente baixo.</p>
+<p>Em termos de custo computacional, aparece a iluminação do tipo pontual (Point Light), onde considera-se a posição real da fonte luminosa e sua distância com cada vértice do objeto, simulando o efeito de uma luz unidirecional, como as utilizadas em casa.</p>
+<p>Ao alterarmos o momento quando os cálculos da iluminação são realizados, fazendo com que eles passem a ser realizados para cada pixel (fragmento) da imagem, em vez de para cada vértice do objeto, os resultados ficam bem mais precisos, mas com um custo computacional bem maior! Nesse novo cenário as luzes direcionais são, novamente, calculadas mais rapidamente do que as luzes pontuais.</p></div><div class="COL2">
+<p>Quando a opção "Utilizar Point Light pixel a pixel" estiver marcada, a opção mais cara em termos computacionais das quatro mencionadas, luz pontual calculada pixel a pixel, é utilizada.</p>
+<p>A opção "Utilizar atenuação conforme o alcance da Point Light", quando desmarcada, faz com que a intensidade luminosa não sofra atenuação conforme a distância, diferente da vida real, onde quanto mais distante um objeto está da fonte luminosa, menos iluminação ele recebe.</p>
+<p><b>Mais informações sobre iluminação:</b><br />
+<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/bb174697(v=vs.85).aspx">Light Types (Direct3D 9)</a><br />
+<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/bb147178(v=vs.85).aspx">Mathematics of Lighting (Direct3D 9)</a><br />
+<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/bb219656(v=vs.85).aspx">Diffuse Lighting (Direct3D 9)</a><br />
+<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/bb147399(v=vs.85).aspx">Specular Lighting (Direct3D 9)</a><br />
+<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/bb172279(v=vs.85).aspx">Attenuation and Spotlight Factor (Direct3D 9)</a><br />
+<a href="http://imdoingitwrong.wordpress.com/2011/01/31/light-attenuation">I'm doing it wrong - Light attenuation (Blog)</a>
+</p></div></div>
+
+<h1>Como e onde testar</h1>
+<p>Chrome 9+ <span class="NOTE">(about:flags)</span><br />
+Firefox 4+ <span class="NOTE">(about:config)</span><br />
+Opera 12+ <span class="NOTE">(about:gpu e about:config ver mais <a href="http://my.opera.com/desktopteam/blog/2011/10/12/hardware-acceleration">aqui</a>)</span><br />
+Safari 5.1 <span class="NOTE">(Mac OS! -> menu Develop -> Enable WebGL)</span><br />
+Internet Explorer 11+ <span class="NOTE">(Aparentemente existe um plugin chamado <a href="http://iewebgl.com">IEWebGL</a> que acrescenta suporte a outras versões, mas nunca testei)</span>
+</p>
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

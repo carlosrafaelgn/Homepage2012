@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head data-nores="1">
+	<meta charset="utf-8" />
+	<script type="text/javascript">//<![CDATA[
+		"use strict"; (function () { var vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); vp.setAttribute("content", ((screen.availWidth >= 712) || (screen.availHeight >= 712)) ? "width=device-width, initial-scale=1" : "width=712"); document.head.appendChild(vp); })(); //]]>
+	</script>
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Problema dos filósofos que jantam</title>
+	<link rel="stylesheet" type="text/css" href="/mainnr.css" />
+	<style type="text/css">
+		.ITBL {
+			display: inline-block;
+			vertical-align: bottom;
+			border-collapse: collapse;
+		}
+		.IPT {
+			font-weight: bold;
+		}
+		.ILEGDIRE, .ILEGDIRD {
+			font-weight: bold;
+		}
+		.ILEGDIRE {
+			background-color: #000;
+			color: #fff;
+		}
+		.ILEGDIRD {
+			background-color: #fff;
+		}
+	</style>
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	if (!window.requestAnimationFrame) {
+		window.requestAnimationFrame = (window.webkitRequestAnimationFrame ||
+			window.mozRequestAnimationFrame ||
+			window.oRequestAnimationFrame ||
+			window.msRequestAnimationFrame ||
+			function (callback, element) { return window.setTimeout(function () { return callback(+new Date()); }, 1000 / 60); });
+	}
+	function State() {
+		this.value = 0;
+		this.observers = new Array();
+	}
+	State.prototype = {
+		isThinking: function () { return this.value === 0; },
+		isHungry: function () { return this.value === 1; },
+		isEating: function () { return this.value === 2; },
+		setThinking: function () { this.value = 0; return this.notify(); },
+		setHungry: function () { this.value = 1; return this.notify(); },
+		setEating: function () { this.value = 2; return this.notify(); },
+		notify: function () {
+			var i, l = this.observers;
+			for (i = l.length - 2; i >= 0; i -= 2) {
+				l[1].call(l[0], this);
+			}
+			return true;
+		},
+		attachObserver: function (observer, targetFunction) {
+			this.observers.push(observer);
+			this.observers.push(targetFunction);
+			return true;
+		},
+		detachObserver: function (observer) {
+			var i, l = this.observers;
+			for (i = l.length - 2; i >= 0; i -= 2) {
+				if (l[i] === observer) {
+					l.splice(i, 2);
+					return true;
+				}
+			}
+			return false;
+		}
+	};
+	function Philosopher(forkL, forkR, pageId) {
+		//0 = left  1 = right
+		this.fork = [forkL, forkR];
+		this.token = [!forkL, !forkR];
+		this.dirty = [true, true];
+		this.state = new State();
+		this.neighbour = [null, null];
+		this.state.attachObserver(this, Philosopher.prototype.stateChanged);
+		this.elImage = $("philosopher" + pageId);
+		this.elToken = [$("tokenL" + pageId), $("tokenR" + pageId)];
+		this.elFork = [$("forkL" + pageId), $("forkR" + pageId)];
+		this.elStart = $("btnStart" + pageId);
+		this.elStop = $("btnStop" + pageId);
+		this.elFunny = $("btnFunny" + pageId);
+		this.refreshVisual();
+	}
+	Philosopher.prototype = {
+		percent: 0,
+		lastTime: 0,
+		nextSteps: [],
+		animating: false,
+		animationObj: null,
+		animationX0: 0,
+		animationY0: 0,
+		animationDX: 0,
+		animationDY: 0,
+		animationCallback: null,
+		becomeHungry: function () { return (this.state.isThinking() ? this.state.setHungry() : false); },
+		stopEating: function () { return (this.state.isEating() ? this.state.setThinking() : false); },
+		updateFrame: function (time) {
+			if (Philosopher.prototype.lastTime < 0) Philosopher.prototype.lastTime = time;
+			var delta = time - Philosopher.prototype.lastTime, p = Philosopher.prototype.percent;
+			p += delta * 0.0006;
+			if (p >= 1) {
+				Philosopher.prototype.animating = false;
+				Elem.hide(Philosopher.prototype.animationObj);
+				Philosopher.prototype.animationCallback();
+				//se não estiver animando depois de executar o callback, verifica se tem algo
+				//pendente para ser executado
+				if (!Philosopher.prototype.animating && Philosopher.prototype.nextSteps.length) {
+					Philosopher.prototype.nextSteps[0]();
+					Philosopher.prototype.nextSteps.splice(0, 1);
+				}
+				return true;
+			}
+			Philosopher.prototype.lastTime = time;
+			Philosopher.prototype.percent = p;
+			Elem.move(Philosopher.prototype.animationObj, (Philosopher.prototype.animationX0 + (p * Philosopher.prototype.animationDX)) | 0, (Philosopher.prototype.animationY0 + (p * Philosopher.prototype.animationDY)) | 0);
+			return window.requestAnimationFrame(Philosopher.prototype.updateFrame);
+		},
+		startAnimating: function (obj, source, destination, callback) {
+			Philosopher.prototype.percent = 0;
+			Philosopher.prototype.animating = true;
+			Philosopher.prototype.animationObj = obj;
+			Philosopher.prototype.animationCallback = callback;
+			var lt0 = Elem.leftTop(source), lt1 = Elem.leftTop(destination);
+			Philosopher.prototype.animationX0 = lt0[0];
+			Philosopher.prototype.animationY0 = lt0[1];
+			Philosopher.prototype.animationDX = lt1[0] - lt0[0];
+			Philosopher.prototype.animationDY = lt1[1] - lt0[1];
+			Elem.show(Elem.move(obj, lt0[0], lt0[1]));
+			Philosopher.prototype.lastTime = -1;
+			return window.requestAnimationFrame(Philosopher.prototype.updateFrame);
+		},
+		sendFork: function (to, sendTokenAfterwards) {
+			var t = this;
+			if (Philosopher.prototype.animating) {
+				//se já estiver animando alguma coisa, marca para executar o sendFork depois
+				Philosopher.prototype.nextSteps.push(function () { return t.sendFork(to, sendTokenAfterwards); });
+				return true;
+			}
+			this.fork[to] = false;
+			this.refreshVisual();
+			return Philosopher.prototype.startAnimating($("forkF"), this.elFork[to], this.neighbour[to].elFork[1 - to], function () {
+				//para enviar, basta dizer para o outro que ele recebeu!!!
+				t.neighbour[to].forkReceived(1 - to);
+				if (sendTokenAfterwards)
+					return t.sendToken(to);
+				return true;
+			});
+		},
+		sendToken: function (to) {
+			var t = this;
+			if (Philosopher.prototype.animating) {
+				//se já estiver animando alguma coisa, marca para executar o sendToken depois
+				Philosopher.prototype.nextSteps.push(function () { return t.sendToken(to); });
+				return true;
+			}
+			this.token[to] = false;
+			this.refreshVisual();
+			return Philosopher.prototype.startAnimating($("tokenF"), this.elToken[to], this.neighbour[to].elToken[1 - to], function () {
+				//para enviar, basta dizer para o outro que ele recebeu!!!
+				return t.neighbour[to].tokenReceived(1 - to);
+			});
+		},
+		forkReceived: function (fromSide) {
+			this.fork[fromSide] = true;
+			this.dirty[fromSide] = false;
+			if (this.fork[0] && this.fork[1])
+				this.state.setEating();
+			return this.refreshVisual();
+		},
+		tokenReceived: function (fromSide) {
+			this.token[fromSide] = true;
+			//se está comendo, nada a fazer
+			if (this.state.isEating()) return this.refreshVisual();
+			//se está pensando, apenas envia o garfo
+			if (this.state.isThinking()) return this.sendFork(fromSide, false);
+			//se chegou aqui, também estava com fome...
+			//precisa tratar a precedência: se o garfo
+			//estiver limpo, ele fica, senão deve enviar o garfo...
+			//contudo, nesse caso já envia o token de volta, pois
+			//iremos querer o garfo logo em seguida!
+			if (this.dirty[fromSide]) return this.sendFork(fromSide, true);
+			return this.refreshVisual();
+		},
+		stateChanged: function () {
+			if (this.state.isEating()) {
+				this.elImage.src = "/Images/PhilEat.png";
+				//apenas suja os garfos
+				this.dirty[0] = true;
+				this.dirty[1] = true;
+				return this.refreshVisual();
+			} else if (this.state.isHungry()) {
+				this.elImage.src = "/Images/PhilHungry.png";
+				//assim que ficar com fome, verifica se está com os dois garfos
+				//se não estiver, envia os tokens
+				if (this.fork[0] && this.fork[1]) {
+					this.state.setEating();
+				} else {
+					if (!this.fork[0]) this.sendToken(0);
+					if (!this.fork[1]) this.sendToken(1);
+				}
+			} else {
+				this.elImage.src = "/Images/PhilThink.png";
+				//voltou a pensar, então envia os garfos para
+				//quem possa ter pedido
+				if (this.token[0]) this.sendFork(0, false);
+				if (this.token[1]) this.sendFork(1, false);
+			}
+			return this.refreshButtons();
+		},
+		refreshButtons: function () {
+			Elem.showHide(this.elStart, this.state.isThinking());
+			Elem.showHide(this.elStop, this.state.isEating());
+			Elem.showHide(this.elFunny, this.state.isHungry());
+		},
+		refreshVisual: function () {
+			var i;
+			this.refreshButtons();
+			for (i = 0; i < 2; i++) {
+				this.elToken[i].style.backgroundColor = (this.token[i] ? "#0f0" : "");
+				this.elFork[i].style.backgroundColor = (this.fork[i] ? (this.dirty[i] ? "#dcbe67" : "#518ec2") : "");
+			}
+		}
+	};
+	function funnyAlert() {
+		return Popup.showInfo("Calma, calma... Já, já você come... :)", "Oops...");
+	}
+	function main() {
+		var r,
+		//         f r0l f
+		//t l1r f           t l2r t
+		philosophers = [
+			new Philosopher(true, true, "1"),
+			new Philosopher(false, true, "2"),
+			new Philosopher(false, false, "3")];
+		philosophers[0].neighbour[0] = philosophers[2];
+		philosophers[0].neighbour[1] = philosophers[1];
+		philosophers[1].neighbour[0] = philosophers[0];
+		philosophers[1].neighbour[1] = philosophers[2];
+		philosophers[2].neighbour[0] = philosophers[1];
+		philosophers[2].neighbour[1] = philosophers[0];
+		attachMouse($("btnStart1"), "click", function () { return (Philosopher.prototype.animating || philosophers[0].becomeHungry()); });
+		attachMouse($("btnStop1"), "click", function () { return (Philosopher.prototype.animating || philosophers[0].stopEating()); });
+		attachMouse($("btnStart2"), "click", function () { return (Philosopher.prototype.animating || philosophers[1].becomeHungry()); });
+		attachMouse($("btnStop2"), "click", function () { return (Philosopher.prototype.animating || philosophers[1].stopEating()); });
+		attachMouse($("btnStart3"), "click", function () { return (Philosopher.prototype.animating || philosophers[2].becomeHungry()); });
+		attachMouse($("btnStop3"), "click", function () { return (Philosopher.prototype.animating || philosophers[2].stopEating()); });
+		attachMouse($("btnFunny1"), "click", funnyAlert);
+		attachMouse($("btnFunny2"), "click", funnyAlert);
+		attachMouse($("btnFunny3"), "click", funnyAlert);
+		r = $("tokenF");
+		r.parentNode.removeChild(r);
+		document.body.appendChild(r);
+		r = $("forkF");
+		r.parentNode.removeChild(r);
+		document.body.appendChild(r);
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0" style="min-width: 648px;"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2" style="position: relative;"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div style="text-align: center; position: absolute; left: 0px; top: 0px; white-space: nowrap;" class="_ML4">
+<br /><br /><br /><br /><br /><br /><br /><br /><br />
+<div class="IPT">Filósofo 2</div>
+<table class="ITBL BRD"><tr><td class="ILEGDIRE _PA4">E</td></tr><tr><td class="_PA4" id="forkL2">F</td></tr><tr><td class="_PA4" id="tokenL2">T</td></tr></table>
+<img class="BRD" id="philosopher2" alt="Filósofo 2" src="/Images/PhilThink.png" width="200" height="128" />
+<table class="ITBL BRD"><tr><td class="ILEGDIRD _PA4">D</td></tr><tr><td class="_PA4" id="forkR2">F</td></tr><tr><td class="_PA4" id="tokenR2">T</td></tr></table><br />
+<div class="BTN _MT4" id="btnStart2">Começar a comer</div>
+<div class="BTN _MT4 _HID" id="btnStop2" aria-hidden="true">Parar de comer</div>
+<div class="BTN _MT4 _HID" id="btnFunny2" aria-hidden="true">Estou com fome!</div>
+</div>
+<div style="text-align: center; position: absolute; right: 0px; top: 0px; white-space: nowrap;" class="_MR4">
+<br /><br /><br /><br /><br /><br /><br /><br /><br />
+<div class="IPT">Filósofo 3</div>
+<table class="ITBL BRD"><tr><td class="ILEGDIRE _PA4">E</td></tr><tr><td class="_PA4" id="forkL3">F</td></tr><tr><td class="_PA4" id="tokenL3">T</td></tr></table>
+<img class="BRD" id="philosopher3" alt="Filósofo 3" src="/Images/PhilThink.png" width="200" height="128" />
+<table class="ITBL BRD"><tr><td class="ILEGDIRD _PA4">D</td></tr><tr><td class="_PA4" id="forkR3">F</td></tr><tr><td class="_PA4" id="tokenR3">T</td></tr></table><br />
+<div class="BTN _MT4" id="btnStart3">Começar a comer</div>
+<div class="BTN _MT4 _HID" id="btnStop3" aria-hidden="true">Parar de comer</div>
+<div class="BTN _MT4 _HID" id="btnFunny3" aria-hidden="true">Estou com fome!</div>
+</div>
+<div style="text-align: center; white-space: nowrap;">
+<div class="IPT">Filósofo 1</div>
+<table class="ITBL BRD"><tr><td class="ILEGDIRD _PA4">D</td></tr><tr><td class="_PA4" id="forkR1">F</td></tr><tr><td class="_PA4" id="tokenR1">T</td></tr></table>
+<img class="BRD" id="philosopher1" alt="Filósofo 1" src="/Images/PhilThink.png" width="200" height="128" />
+<table class="ITBL BRD"><tr><td class="ILEGDIRE _PA4">E</td></tr><tr><td class="_PA4" id="forkL1">F</td></tr><tr><td class="_PA4" id="tokenL1">T</td></tr></table><br />
+<div class="BTN _MT4" id="btnStart1">Começar a comer</div>
+<div class="BTN _MT4 _HID" id="btnStop1" aria-hidden="true">Parar de comer</div>
+<div class="BTN _MT4 _HID" id="btnFunny1" aria-hidden="true">Estou com fome!</div>
+</div>
+<br /><br /><br /><br /><br /><br /><br /><br /><br />
+
+<br />
+<div style="text-align: right;"><table class="ITBL BRD"><tr><td colspan="2" class="IPT _PA4 BRD" style="background-color: #fff; border-width: 0px 0px 1px;">Legenda</td></tr>
+<tr><td class="_PA4">F</td><td class="_PA4">Filósofo não possui o garfo</td></tr>
+<tr><td class="_PA4" style="background-color: #dcbe67;">F</td><td class="_PA4">Filósofo possui o garfo sujo</td></tr>
+<tr><td class="_PA4" style="background-color: #518ec2;">F</td><td class="_PA4">Filósofo possui o garfo limpo</td></tr>
+<tr><td class="_PA4">T</td><td class="_PA4">Filósofo não possui o token de requisição</td></tr>
+<tr><td class="_PA4" style="background-color: #0f0;">T</td><td class="_PA4">Filósofo possui o token de requisição</td></tr>
+</table></div>
+
+<div id="tokenF" class="BRD _PA4 _HID" aria-hidden="true" style="z-index: 1; position: absolute; background-color: #0f0;">T</div>
+
+<div id="forkF" class="BRD _PA4 _HID" aria-hidden="true" style="z-index: 1; position: absolute; background-color: #518ec2;">F</div>
+
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

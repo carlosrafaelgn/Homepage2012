@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head data-nores="1">
+	<meta charset="utf-8" />
+	<script type="text/javascript">//<![CDATA[
+		"use strict"; (function () { var vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); vp.setAttribute("content", ((screen.availWidth >= 864) || (screen.availHeight >= 864)) ? "width=device-width, initial-scale=1" : "width=864"); document.head.appendChild(vp); })(); //]]>
+	</script>
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Animador de Sprites</title>
+	<link rel="stylesheet" type="text/css" href="/mainnr.css" />
+	<style type="text/css">
+		.BLK {
+			display: block;
+		}
+	</style>
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript" charset="utf-8" src="/resizepanel.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	var lastTime, fps, animId, spriteImg, img, txtFps, txtFixedFrameCount, bg, ctx, frame, frameCount,
+	dlgChangeBgSize, chkInv, txtBgWidth, txtBgWidthView, txtBgHeight, bgWidth, bgHeight, txtFixedWidth, txtFixedHeight, txtFixedCount, cbFixedMode,
+	cbType, fixedModes, drawMode, fixedX, fixedY, listFrames, ignoreFrameChange,
+	txtCustomX, txtCustomY, txtCustomW, txtCustomH, txtCustomOX, txtCustomOY,
+	selArea, selAreaO, selAreaType, selAreaLastX, selAreaLastY, chkShowOrigin, chkEditOrigin;
+	if (!window.requestAnimationFrame) {
+		window.requestAnimationFrame = (window.webkitRequestAnimationFrame ||
+			window.mozRequestAnimationFrame ||
+			window.oRequestAnimationFrame ||
+			window.msRequestAnimationFrame ||
+			function (callback, element) { return window.setTimeout(function () { return callback(+new Date()); }, 1000 / 60); });
+	}
+	if (!window.cancelAnimationFrame) {
+		window.cancelAnimationFrame = (window.webkitCancelAnimationFrame ||
+			window.mozCancelAnimationFrame ||
+			window.oCancelAnimationFrame ||
+			window.msCancelAnimationFrame ||
+			function (id) { return window.clearTimeout(id); });
+	}
+	function SpriteFrame(x, y, w, h, ox, oy) {
+		this.x = x;
+		this.y = y;
+		this.w = w;
+		this.h = h;
+		this.ox = ox;
+		this.oy = oy;
+	}
+	SpriteFrame.prototype = {
+		clone: function () {
+			return new SpriteFrame(this.x, this.y, this.w, this.h, this.ox, this.oy);
+		},
+		toString: function () {
+			return this.x + "," + this.y + " " + this.w + "x" + this.h + " (" + this.ox + "," + this.oy + ")";
+		},
+		toLocaleString: function () {
+			return SpriteFrame.prototype.toString.call(this);
+		}
+	};
+	function drawFrame(time) {
+		if (lastTime < 0) lastTime = time;
+		var delta = time - lastTime;
+		lastTime = time;
+		frame = (frame + (fps * delta)) % frameCount;
+		if (spriteImg && ctx) {
+			ctx.clearRect(0, 0, bgWidth, bgHeight);
+			drawMode(chkInv.isChecked() ? ((frameCount >>> 20) - (frame >>> 20) - 1) : (frame >>> 20));
+		}
+		if (animId !== undefined)
+			animId = window.requestAnimationFrame(drawFrame, bg);
+	}
+	function drawFrameFixedMode0(f) {
+		var w = txtFixedWidth.getValue(), h = txtFixedHeight.getValue();
+		ctx.drawImage(spriteImg, f * w, 0, w, h, (bgWidth >>> 1) - (w >>> 1), (bgHeight >>> 1) - (h >>> 1), w, h);
+		return true;
+	}
+	function drawFrameFixedMode1(f) {
+		var w = txtFixedWidth.getValue(), h = txtFixedHeight.getValue();
+		ctx.drawImage(spriteImg, 0, f * h, w, h, (bgWidth >>> 1) - (w >>> 1), (bgHeight >>> 1) - (h >>> 1), w, h);
+		return true;
+	}
+	function drawFrameFixedMode2(f) {
+		var c = txtFixedCount.getValue(), w = txtFixedWidth.getValue(), h = txtFixedHeight.getValue();
+		ctx.drawImage(spriteImg, (f % c) * w, ((f / c) | 0) * h, w, h, (bgWidth >>> 1) - (w >>> 1), (bgHeight >>> 1) - (h >>> 1), w, h);
+		return true;
+	}
+	function drawFrameFixedMode3(f) {
+		var c = txtFixedCount.getValue(), w = txtFixedWidth.getValue(), h = txtFixedHeight.getValue();
+		ctx.drawImage(spriteImg, ((f / c) | 0) * w, (f % c) * h, w, h, (bgWidth >>> 1) - (w >>> 1), (bgHeight >>> 1) - (h >>> 1), w, h);
+		return true;
+	}
+	function drawFrameCustomMode(f) {
+		f = listFrames.getItem(f);
+		if (f) ctx.drawImage(spriteImg, f.x, f.y, f.w, f.h, (bgWidth >>> 1) - f.ox, (bgHeight >>> 1) - f.oy, f.w, f.h);
+		return true;
+	}
+	function txtFps_ValueChanged(model, value) {
+		fps = Math.round((value << 20) / 1000);
+		return true;
+	}
+	function txtFixedFrameCount_ValueChanged(model, value) {
+		frameCount = (value << 20);
+		return true;
+	}
+	function btnFile_Click() {
+		$("txtFile").click();
+		return true;
+	}
+	function showNotSupported() {
+		Popup.showError("Aparentemente seu browser não possui a API necessária para acessar arquivos locais! :(");
+		return true;
+	}
+	function showPleaseLoad() {
+		Popup.showInfo("Por favor, carregue uma imagem antes de prosseguir.", "Oops...");
+		return true;
+	}
+	function showPleaseSelect() {
+		Popup.showInfo("Por favor, selecione um frame antes de prosseguir.", "Oops...");
+		return true;
+	}
+	function stopAnimation() {
+		if (animId !== undefined) {
+			window.cancelAnimationFrame(animId);
+			animId = undefined;
+			$("btnPlayPause").innerHTML = "Animar";
+		}
+		return true;
+	}
+	function btnPlayPause_Click() {
+		if (animId === undefined) {
+			if (!frameCount) {
+				Popup.showInfo("Impossível prosseguir sem frames.", "Oops...");
+				return true;
+			}
+			if (spriteImg && ctx) {
+				lastTime = -1;
+				animId = window.requestAnimationFrame(drawFrame, bg);
+				$("btnPlayPause").innerHTML = "Parar";
+			} else {
+				showPleaseLoad();
+			}
+			return true;
+		}
+		return stopAnimation();
+	}
+	function txtFile_Change() {
+		var f = $("txtFile").files, reader;
+		if (!f)
+			return showNotSupported();
+		if (!f.length)
+			return true;
+		stopAnimation();
+		f = f[0];
+		//$("btnFile").innerHTML = f.name + " (...)";
+		if (!f.type.match("image/*")) {
+			Popup.showError("Por favor, selecione uma imagem válida!");
+			return true;
+		}
+		reader = new FileReader();
+		attachObserver(reader, "error", function (err) {
+			Popup.showError("Ocorreu um erro ao tentar acessar o arquivo " + f.name + "!<br /><br />Isso pode ter ocorrido devido a permissões do browser. Possíveis correções são:<br />- Acessar essa página através de um servidor web, em vez de acessar o arquivo localmente<br />- Se você estiver utilizando o Chrome, execute o browser com a opção --allow-file-access-from-files<br />- Utilize outros browsers, como Firefox ou Opera");
+			return true;
+		});
+		attachObserver(reader, "load", function () {
+			img.f = f;
+			attachObserver(img, "load", img_Load);
+			attachObserver(img, "error", img_Error);
+			img.src = reader.result;
+			return true;
+		});
+		reader.readAsDataURL(f);
+		return true;
+	}
+	function btnLoadExample_Click() {
+		var i;
+		stopAnimation();
+		img.f = { name: "joaninha.png" };
+		attachObserver(img, "load", img_Load);
+		attachObserver(img, "error", img_Error);
+		img.src = "/Images/joaninha.png";
+		txtFps.setValue(12);
+		txtFixedFrameCount.setValue(12);
+		txtFixedWidth.setValue(225);
+		txtFixedHeight.setValue(170);
+		txtFixedCount.setValue(4);
+		cbFixedMode.setSelectedIndex(2);
+		listFrames.clear();
+		for (i = 0; i < 12; i++)
+			listFrames.addLast(new SpriteFrame((i & 3) * 225, (i >>> 2) * 170, 225, 170, 114, 90 - ((Math.sin(Math.PI * i / 6) * 4) | 0)));
+		listFrames.setSelectedIndex(0);
+		cbType_SelectedIndexChanged(cbType, cbType.getSelectedIndex(), -1);
+		return true;
+	}
+	function cbType_SelectedIndexChanged(model, selectedIndex, previousIndex) {
+		stopAnimation();
+		drawMode = ((selectedIndex === 0) ? fixedModes[cbFixedMode.getSelectedIndex()] : drawFrameCustomMode);
+		frameCount = ((selectedIndex === 0) ? txtFixedFrameCount.getValue() : listFrames.count()) << 20;
+		Elem.showHide($("panelFixed"), selectedIndex === 0);
+		Elem.showHide($("panelCustom"), !(selectedIndex === 0));
+		Elem.showHide($("customTB"), !(selectedIndex === 0 || !spriteImg));
+		Elem.showHide($("customTB2"), !(selectedIndex === 0 || !spriteImg));
+		Elem.showHide($("chkShowOrigin"), !(selectedIndex === 0 || !spriteImg));
+		Elem.showHide($("chkEditOrigin"), !(selectedIndex === 0 || !spriteImg));
+		Elem.showHide(selArea, !(selectedIndex === 0));
+		return true;
+	}
+	function changeBgSize() {
+		bgWidth = txtBgWidth.getValue();
+		bgHeight = txtBgHeight.getValue();
+		bg.width = bgWidth;
+		bg.height = bgHeight;
+		$("lblBgSize").innerHTML = "Dimensões atuais: " + bgWidth + "x" + bgHeight;
+		Popup.close();
+		return true;
+	}
+	function btnBgSize_Click() {
+		txtBgWidth.setValue(bgWidth);
+		txtBgHeight.setValue(bgHeight);
+		Popup.show(dlgChangeBgSize, true, txtBgWidthView.txt, "Alterar...");
+		return true;
+	}
+	function btnBgSizeOk_Click() {
+		changeBgSize();
+		return true;
+	}
+	function btnBgSizeCancel_Click() {
+		Popup.close();
+		return true;
+	}
+	function cbFixedMode_SelectedIndexChanged(model, selectedIndex, previousIndex) {
+		frame = 0;
+		fixedX = 0;
+		fixedY = 0;
+		drawMode = fixedModes[selectedIndex];
+		Elem.showHide($("rowFixedCount"), selectedIndex >= 2);
+		switch (selectedIndex) {
+			case 2:
+				$("lblTxtFixedCount").innerHTML = "Frames por linha";
+				$("btnFillFixedData").innerHTML = "Adivinhar os valores com base na imagem e nos frames por linha";
+				break;
+			case 3:
+				$("lblTxtFixedCount").innerHTML = "Frames por coluna";
+				$("btnFillFixedData").innerHTML = "Adivinhar os valores com base na imagem e nos frames por coluna";
+				break;
+			default:
+				$("btnFillFixedData").innerHTML = "Adivinhar os valores com base na imagem";
+				break;
+		}
+		return true;
+	}
+	function btnFillFixedData_Click() {
+		var f, d, c;
+		if (spriteImg) {
+			switch (cbFixedMode.getSelectedIndex()) {
+				case 0:
+					d = spriteImg.height;
+					f = ((spriteImg.width / d) | 0);
+					break;
+				case 1:
+					d = spriteImg.width;
+					f = ((spriteImg.height / d) | 0);
+					break;
+				case 2:
+					c = txtFixedCount.getValue();
+					d = ((spriteImg.width / c) | 0);
+					f = c * ((spriteImg.height / d) | 0);
+					break;
+				case 3:
+					c = txtFixedCount.getValue();
+					d = ((spriteImg.height / c) | 0);
+					f = c * ((spriteImg.width / d) | 0);
+					break;
+			}
+			txtFixedFrameCount.setValue(f);
+			txtFixedWidth.setValue(d);
+			txtFixedHeight.setValue(d);
+		} else {
+			showPleaseLoad();
+		}
+		return true;
+	}
+	function btnFixedFrameCount_Click() {
+		var f;
+		if (spriteImg) {
+			switch (cbFixedMode.getSelectedIndex()) {
+				case 0:
+					f = ((spriteImg.width / txtFixedWidth.getValue()) | 0);
+					break;
+				case 1:
+					f = ((spriteImg.height / txtFixedHeight.getValue()) | 0);
+					break;
+				case 2:
+					f = ((spriteImg.width / txtFixedWidth.getValue()) | 0) * ((spriteImg.height / txtFixedHeight.getValue()) | 0);
+					txtFixedCount.setValue(((spriteImg.width / txtFixedWidth.getValue()) | 0));
+					break;
+				case 3:
+					f = ((spriteImg.width / txtFixedWidth.getValue()) | 0) * ((spriteImg.height / txtFixedHeight.getValue()) | 0);
+					txtFixedCount.setValue(((spriteImg.height / txtFixedHeight.getValue()) | 0));
+					break;
+			}
+			txtFixedFrameCount.setValue(f || 1);
+		} else {
+			showPleaseLoad();
+		}
+		return true;
+	}
+	function loadFrame(f) {
+		txtCustomX.setValue(f.x);
+		txtCustomY.setValue(f.y);
+		txtCustomW.setValue(f.w);
+		txtCustomH.setValue(f.h);
+		txtCustomOX.setValue(f.ox);
+		txtCustomOY.setValue(f.oy);
+		return true;
+	}
+	function txtCustomX_ValueChanged(model, value) {
+		//make up for the image border
+		selArea.style.left = (value + 1) + "px";
+		return true;
+	}
+	function txtCustomY_ValueChanged(model, value) {
+		//make up for the image border
+		selArea.style.top = (value + 1) + "px";
+		return true;
+	}
+	function txtCustomW_ValueChanged(model, value) {
+		selArea.style.width = value + "px";
+		return true;
+	}
+	function txtCustomH_ValueChanged(model, value) {
+		selArea.style.height = value + "px";
+		return true;
+	}
+	function txtCustomOX_ValueChanged(model, value) {
+		selAreaO.style.left = (value - 10) + "px";
+		return true;
+	}
+	function txtCustomOY_ValueChanged(model, value) {
+		selAreaO.style.top = (value - 10) + "px";
+		return true;
+	}
+	function btnNewFrame_Click() {
+		listFrames.addLast(new SpriteFrame(txtCustomX.getValue(), txtCustomY.getValue(), txtCustomW.getValue(), txtCustomH.getValue(), txtCustomOX.getValue(), txtCustomOY.getValue()));
+		ignoreFrameChange = true;
+		listFrames.setSelectedIndex(listFrames.count() - 1);
+		frameCount += (1 << 20);
+		return true;
+	}
+	function btnUpdateFrame_Click() {
+		var f = listFrames.getSelectedItem();
+		if (f) {
+			f.x = txtCustomX.getValue();
+			f.y = txtCustomY.getValue();
+			f.w = txtCustomW.getValue();
+			f.h = txtCustomH.getValue();
+			f.ox = txtCustomOX.getValue();
+			f.oy = txtCustomOY.getValue();
+			listFrames.setItem(listFrames.getSelectedIndex(), f);
+		} else {
+			showPleaseSelect();
+		}
+		return true;
+	}
+	function listFrames_SelectedIndexChanged(model, selectedIndex, previousIndex) {
+		if (ignoreFrameChange) {
+			ignoreFrameChange = false;
+			return true;
+		}
+		var f = listFrames.getSelectedItem();
+		if (f) loadFrame(f);
+		return true;
+	}
+	function btnMoveFrameUp_Click() {
+		var i = listFrames.getSelectedIndex(), f;
+		if (i >= 0) {
+			if (!i) return true;
+			f = listFrames.getSelectedItem();
+			listFrames.setItem(i, listFrames.getItem(i - 1));
+			listFrames.setItem(i - 1, f);
+			ignoreFrameChange = true;
+			listFrames.setSelectedIndex(i - 1);
+		} else {
+			showPleaseSelect();
+		}
+		return true;
+	}
+	function btnMoveFrameDown_Click() {
+		var i = listFrames.getSelectedIndex(), f;
+		if (i >= 0) {
+			if (i >= (listFrames.count() - 1)) return true;
+			f = listFrames.getSelectedItem();
+			listFrames.setItem(i, listFrames.getItem(i + 1));
+			listFrames.setItem(i + 1, f);
+			ignoreFrameChange = true;
+			listFrames.setSelectedIndex(i + 1);
+		} else {
+			showPleaseSelect();
+		}
+		return true;
+	}
+	function btnCloneFrame_Click() {
+		var i = listFrames.getSelectedIndex(), c = listFrames.count(), f;
+		if (i >= 0 && c > 0) {
+			i++;
+			f = listFrames.getSelectedItem().clone();
+			listFrames.add(i, f);
+			frameCount = ((c + 1) << 20);
+			ignoreFrameChange = true;
+			listFrames.setSelectedIndex(i);
+		} else {
+			showPleaseSelect();
+		}
+		return true;
+	}
+	function btnRemoveFrame_Click() {
+		var i = listFrames.getSelectedIndex(), c = listFrames.count();
+		if (i >= 0 && c > 0) {
+			c--;
+			frameCount = (c << 20);
+			if (!c) stopAnimation();
+			else listFrames.setSelectedIndex((i >= c) ? (c - 1) : i);
+			listFrames.remove(i);
+		} else {
+			showPleaseSelect();
+		}
+		return true;
+	}
+	function btnRemoveAllFrames_Click() {
+		stopAnimation();
+		frameCount = 0;
+		listFrames.clear();
+		return true;
+	}
+	function chkShowOrigin_CheckedChanged(model, checked) {
+		Elem.showHide(selAreaO, checked);
+		return true;
+	}
+	function chkEditOrigin_CheckedChanged(model, checked) {
+		if (checked) {
+			chkShowOrigin.setChecked(true);
+			selAreaO.style.zIndex = 11;
+			selAreaO.style.cursor = "crosshair";
+		} else {
+			selAreaO.style.zIndex = 2;
+			selAreaO.style.cursor = "";
+		}
+		return true;
+	}
+	function selArea_MouseDownMove(e) {
+		return selArea_MouseDown(1, e);
+	}
+	function selArea_MouseDownW(e) {
+		return selArea_MouseDown(2, e);
+	}
+	function selArea_MouseDownE(e) {
+		return selArea_MouseDown(4, e);
+	}
+	function selArea_MouseDownN(e) {
+		return selArea_MouseDown(8, e);
+	}
+	function selArea_MouseDownS(e) {
+		return selArea_MouseDown(16, e);
+	}
+	function selArea_MouseDownNW(e) {
+		return selArea_MouseDown(8 + 2, e);
+	}
+	function selArea_MouseDownNE(e) {
+		return selArea_MouseDown(8 + 4, e);
+	}
+	function selArea_MouseDownSW(e) {
+		return selArea_MouseDown(16 + 2, e);
+	}
+	function selArea_MouseDownSE(e) {
+		return selArea_MouseDown(16 + 4, e);
+	}
+	function selArea_MouseDownO(e) {
+		return (!chkEditOrigin.isChecked() ? true : selArea_MouseDown(32, e));
+	}
+	function selArea_MouseDown(t, e) {
+		if (e.button === 0 && !selAreaType) {
+			selArea.focus();
+			selAreaType = t;
+			selAreaLastX = e.clientX;
+			selAreaLastY = e.clientY;
+			attachMouse(document, "mousemove", selArea_MouseMove, true);
+			attachMouse(document, "mouseup", selArea_MouseUp, true);
+			return cancelEvent(e);
+		}
+		return true;
+	}
+	function selArea_MouseMove(e) {
+		var old, dx = e.clientX - selAreaLastX, dy = e.clientY - selAreaLastY;
+		selAreaLastX = e.clientX;
+		selAreaLastY = e.clientY;
+		if ((selAreaType & 1)) { //move
+			txtCustomX.setValue(txtCustomX.getValue() + dx);
+			txtCustomY.setValue(txtCustomY.getValue() + dy);
+		} else if ((selAreaType & 32)) { //crosshair
+			txtCustomOX.setValue(txtCustomOX.getValue() + dx);
+			txtCustomOY.setValue(txtCustomOY.getValue() + dy);
+		} else {
+			if ((selAreaType & 2)) { //W
+				old = txtCustomW.getValue();
+				txtCustomW.setValue(old - dx);
+				txtCustomX.setValue(txtCustomX.getValue() - (txtCustomW.getValue() - old));
+				selAreaLastX = e.clientX - dx - (txtCustomW.getValue() - old);
+			} else if ((selAreaType & 4)) { //E
+				old = txtCustomW.getValue();
+				txtCustomW.setValue(txtCustomW.getValue() + dx);
+				selAreaLastX = e.clientX - dx + (txtCustomW.getValue() - old);
+			}
+			if ((selAreaType & 8)) { //N
+				old = txtCustomH.getValue();
+				txtCustomH.setValue(old - dy);
+				txtCustomY.setValue(txtCustomY.getValue() - (txtCustomH.getValue() - old));
+				selAreaLastY = e.clientY - dy - (txtCustomH.getValue() - old);
+			} else if ((selAreaType & 16)) { //S
+				old = txtCustomH.getValue();
+				txtCustomH.setValue(txtCustomH.getValue() + dy);
+				selAreaLastY = e.clientY - dy + (txtCustomH.getValue() - old);
+			}
+		}
+		return true;
+	}
+	function selArea_MouseUp(e) {
+		selAreaType = 0;
+		detachMouse(document, "mousemove", selArea_MouseMove, true);
+		detachMouse(document, "mouseup", selArea_MouseUp, true);
+		return true;
+	}
+	function img_Load() {
+		spriteImg = img;
+		Elem.show($("imgContainer"));
+		Elem.show($("miscTB"));
+		$("imgInfo").innerHTML = img.f.name + " - " + img.width + "x" + img.height;
+		if (cbType.getSelectedIndex() === 1) {
+			Elem.show($("customTB"));
+			Elem.show($("customTB2"));
+			Elem.show($("chkShowOrigin"));
+			Elem.show($("chkEditOrigin"));
+		}
+		delete img.f;
+		return true;
+	}
+	function img_Error() {
+		spriteImg = null;
+		ELem.hide($("imgContainer"));
+		ELem.hide($("miscTB"));
+		$("imgInfo").innerHTML = "[Nenhuma imagem]";
+		ELem.hide($("customTB"));
+		ELem.hide($("customTB2"));
+		ELem.hide($("chkShowOrigin"));
+		ELem.hide($("chkEditOrigin"));
+		delete img.f;
+		Popup.showError("Erro ao carregar a imagem " + f.name + "!");
+		return true;
+	}
+	function main() {
+		var dlg, n, lblbgwv, lblbghv, bghv;
+		frame = 0;
+		frameCount = (1 << 20);
+		fps = Math.round((14 << 20) / 1000);
+		attachMouse($("btnPlayPause"), "click", btnPlayPause_Click);
+		attachMouse($("btnFile"), "click", btnFile_Click);
+		attachObserver($("txtFile"), "change", txtFile_Change);
+		chkInv = new CheckBox(false, "Inverso");
+		chkInv.replaceControl($("chkInv"));
+		txtFps = new NumericUpDown(1, 100, 14, false);
+		txtFps.replaceControl($("txtFps"), 5.5, 3);
+		txtFps.onValueChanged.attach(txtFps_ValueChanged);
+		txtFixedFrameCount = new NumericUpDown(1, 999, 1, false);
+		txtFixedFrameCount.replaceControl($("txtFixedFrameCount"), 5.5, 3);
+		txtFixedFrameCount.onValueChanged.attach(txtFixedFrameCount_ValueChanged);
+		cbType = new ListBox();
+		cbType.addLast("Fixo");
+		cbType.addLast("Personalizado");
+		cbType.setSelectedIndex(0);
+		cbType.replaceComboControl($("cbType"), 9);
+		cbType.onSelectedIndexChanged.attach(cbType_SelectedIndexChanged);
+		attachMouse($("btnLoadExample"), "click", btnLoadExample_Click);
+		lblbgwv = $("lblTxtBgWidth");
+		lblbghv = $("lblTxtBgHeight");
+		txtBgWidth = new NumericUpDown(10, 400, 150, false);
+		txtBgWidthView = txtBgWidth.replaceControl($("txtBgWidth"), 5.5, 3);
+		txtBgHeight = new NumericUpDown(10, 400, 150, false);
+		bghv = txtBgHeight.replaceControl($("txtBgHeight"), 5.5, 3);
+		attachMouse($("btnBgSize"), "click", btnBgSize_Click);
+		attachMouse($("btnBgSizeOk"), "click", btnBgSizeOk_Click);
+		attachMouse($("btnBgSizeCancel"), "click", btnBgSizeCancel_Click);
+		dlgChangeBgSize = $("dlgChangeBgSize");
+		dlgChangeBgSize.parentNode.removeChild(dlgChangeBgSize);
+		dlg = Popup.createDialog();
+		while (dlgChangeBgSize.childNodes.length) {
+			n = dlgChangeBgSize.childNodes[0];
+			dlgChangeBgSize.removeChild(n);
+			dlg.appendChild(n);
+		}
+		dlgChangeBgSize = dlg;
+		ResizePanel.create(undefined, 22, undefined, $("panelL"), $("panelR"), false, 18);
+		txtFixedWidth = new NumericUpDown(1, 999, 64, true);
+		txtFixedWidth.replaceControl($("txtFixedWidth"), 5.5, 3);
+		txtFixedHeight = new NumericUpDown(1, 999, 64, true);
+		txtFixedHeight.replaceControl($("txtFixedHeight"), 5.5, 3);
+		txtFixedCount = new NumericUpDown(1, 999, 4, true);
+		txtFixedCount.replaceControl($("txtFixedCount"), 5.5, 3);
+		fixedModes = [drawFrameFixedMode0, drawFrameFixedMode1, drawFrameFixedMode2, drawFrameFixedMode3];
+		fixedX = 0;
+		fixedY = 0;
+		drawMode = fixedModes[0];
+		cbFixedMode = new ListBox();
+		cbFixedMode.addLast("Uma linha");
+		cbFixedMode.addLast("Uma coluna");
+		cbFixedMode.addLast("Várias linhas (Esquerda - Direita, Cima - Baixo)");
+		cbFixedMode.addLast("Várias colunas (Cima - Baixo, Esquerda - Direita)");
+		cbFixedMode.setSelectedIndex(0);
+		cbFixedMode.replaceComboControl($("cbFixedMode"), 25);
+		cbFixedMode.onSelectedIndexChanged.attach(cbFixedMode_SelectedIndexChanged);
+		attachMouse($("btnFillFixedData"), "click", btnFillFixedData_Click);
+		attachMouse($("btnFixedFrameCount"), "click", btnFixedFrameCount_Click);
+		listFrames = new ListBox();
+		listFrames.replaceControl($("listFrames"), 17, 19).lb.style.verticalAlign = "top";
+		listFrames.onSelectedIndexChanged.attach(listFrames_SelectedIndexChanged);
+		attachMouse($("btnMoveFrameUp"), "click", btnMoveFrameUp_Click);
+		attachMouse($("btnMoveFrameDown"), "click", btnMoveFrameDown_Click);
+		attachMouse($("btnCloneFrame"), "click", btnCloneFrame_Click);
+		attachMouse($("btnRemoveFrame"), "click", btnRemoveFrame_Click);
+		attachMouse($("btnRemoveAllFrames"), "click", btnRemoveAllFrames_Click);
+		attachMouse($("btnNewFrame"), "click", btnNewFrame_Click);
+		attachMouse($("btnUpdateFrame"), "click", btnUpdateFrame_Click);
+		txtCustomX = new NumericUpDown(-9999, 9999, 0, false);
+		txtCustomX.replaceControl($("txtCustomX"), 5.5, 5);
+		txtCustomX.onValueChanged.attach(txtCustomX_ValueChanged);
+		txtCustomY = new NumericUpDown(-9999, 9999, 0, false);
+		txtCustomY.replaceControl($("txtCustomY"), 5.5, 5);
+		txtCustomY.onValueChanged.attach(txtCustomY_ValueChanged);
+		txtCustomW = new NumericUpDown(1, 9999, 32, false);
+		txtCustomW.replaceControl($("txtCustomW"), 5.5, 4);
+		txtCustomW.onValueChanged.attach(txtCustomW_ValueChanged);
+		txtCustomH = new NumericUpDown(1, 9999, 32, false);
+		txtCustomH.replaceControl($("txtCustomH"), 5.5, 4);
+		txtCustomH.onValueChanged.attach(txtCustomH_ValueChanged);
+		txtCustomOX = new NumericUpDown(-9999, 9999, 0, false);
+		txtCustomOX.replaceControl($("txtCustomOX"), 5.5, 5);
+		txtCustomOX.onValueChanged.attach(txtCustomOX_ValueChanged);
+		txtCustomOY = new NumericUpDown(-9999, 9999, 0, false);
+		txtCustomOY.replaceControl($("txtCustomOY"), 5.5, 5);
+		txtCustomOY.onValueChanged.attach(txtCustomOY_ValueChanged);
+		chkShowOrigin = new CheckBox(true, "Exibir origem");
+		chkShowOrigin.replaceControl($("chkShowOrigin"));
+		Elem.hide($("chkShowOrigin"));
+		chkShowOrigin.onCheckedChanged.attach(chkShowOrigin_CheckedChanged);
+		chkEditOrigin = new CheckBox(false, "Editar origem");
+		chkEditOrigin.replaceControl($("chkEditOrigin"));
+		Elem.hide($("chkEditOrigin"));
+		chkEditOrigin.onCheckedChanged.attach(chkEditOrigin_CheckedChanged);
+		selAreaType = 0;
+		selAreaLastX = 0;
+		selAreaLastY = 0;
+		selArea = $("selArea");
+		selAreaO = $("selAreaO");
+		selArea.tabIndex = 0;
+		selArea.setAttribute("role", "button");
+		attachMouse(selArea, "mousedown", selArea_MouseDownMove);
+		attachMouse($("selAreaW"), "mousedown", selArea_MouseDownW);
+		attachMouse($("selAreaE"), "mousedown", selArea_MouseDownE);
+		attachMouse($("selAreaN"), "mousedown", selArea_MouseDownN);
+		attachMouse($("selAreaS"), "mousedown", selArea_MouseDownS);
+		attachMouse($("selAreaNW"), "mousedown", selArea_MouseDownNW);
+		attachMouse($("selAreaNE"), "mousedown", selArea_MouseDownNE);
+		attachMouse($("selAreaSW"), "mousedown", selArea_MouseDownSW);
+		attachMouse($("selAreaSE"), "mousedown", selArea_MouseDownSE);
+		attachMouse(selAreaO, "mousedown", selArea_MouseDownO);
+		animId = undefined;
+		img = $("img");
+		bg = $("bg");
+		bgWidth = 150;
+		bgHeight = 150;
+		ctx = bg.getContext("2d");
+		Elem.setLabelledBy($("lblBtnFile"), $("btnFile"));
+		Elem.setLabelledBy($("lblTxtFps"), $("txtFps"));
+		Elem.setLabelledBy($("lblCbType"), $("cbType"));
+		Elem.setLabelledBy(lblbgwv, txtBgWidthView.txt);
+		Elem.setLabelledBy(lblbghv, bghv.txt);
+		Elem.setLabelledBy($("lblCbFixedMode"), $("cbFixedMode"));
+		Elem.setLabelledBy($("lblTxtFixedFrameCount"), $("txtFixedFrameCount"));
+		Elem.setLabelledBy($("lblTxtFixedWidth"), $("txtFixedWidth"));
+		Elem.setLabelledBy($("lblTxtFixedHeight"), $("txtFixedHeight"));
+		Elem.setLabelledBy($("lblTxtFixedCount"), $("txtFixedCount"));
+		Elem.setLabelledBy($("lblTxtCustomX"), $("txtCustomX"));
+		Elem.setLabelledBy($("lblTxtCustomW"), $("txtCustomW"));
+		Elem.setLabelledBy($("lblTxtCustomOX"), $("txtCustomOX"));
+		Elem.setLabelledBy($("lblFrames"), $("listFrames"));
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0" style="min-width: 800px;"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div class="TLB _MB4" role="toolbar">
+<div class="BTN BTNTLB" id="btnPlayPause">Animar</div> <span id="chkInv"></span>
+<div class="TLBSEP"></div>
+<div class="LBL TXTLBL _MR4" id="lblBtnFile">Sprite</div><div class="BTN BTNTLB" id="btnFile">Escolher arquivo...</div><div style="width: 0px; overflow: hidden; display: inline-block; margin: 0px; padding: 0px; vertical-align: text-bottom;"><input style="margin: 0px; padding: 0px;" type="file" accept="image/*" id="txtFile" /></div>
+<div class="LBL TXTLBL _MR4" id="lblTxtFps">FPS</div><span id="txtFps"></span> 
+<div class="LBL TXTLBL _MR4" id="lblCbType">Tipo</div><span id="cbType"></span> 
+<div class="TLBSEP"></div>
+<div class="BTN BTNTLB" id="btnLoadExample" style="font-style: italic; font-size: 8pt;">Abrir exemplo...</div>
+</div>
+
+<div id="panelL" class="_TAC" style="overflow: auto;" role="group">
+<canvas id="bg" width="150" height="150"></canvas><br />
+<div id="lblBgSize" class="LBL">Dimensões atuais: 150x150</div><br /><div class="BTN" id="btnBgSize">Alterar...</div>
+<div id="dlgChangeBgSize" class="_HID" aria-hidden="true">
+<div class="_PA4"><div class="LBL TXTLBL" style="width: 8em;" id="lblTxtBgWidth">Nova largura</div><div id="txtBgWidth"></div></div>
+<div class="_PA4"><div class="LBL TXTLBL" style="width: 8em;" id="lblTxtBgHeight">Nova altura</div><div id="txtBgHeight"></div></div>
+<div class="DLGBTNCONTAINER"><div class="BTN" id="btnBgSizeOk">Alterar</div><div class="BTN _ML4" id="btnBgSizeCancel">Cancelar</div></div>
+</div>
+</div>
+
+<div id="panelR" style="overflow: auto; padding-left: 4pt;" role="group">
+<div id="panelFixed">
+<div class="_MB4"><div class="LBL TXTLBL" id="lblCbFixedMode" style="width: 13em;">Modo de funcionamento</div> <div id="cbFixedMode"></div></div>
+<div class="_MB4"><div class="LBL TXTLBL" id="lblTxtFixedFrameCount" style="width: 13em;">Quantidade de frames</div> <div id="txtFixedFrameCount"></div></div>
+<div class="_MB4"><div class="LBL TXTLBL" id="lblTxtFixedWidth" style="width: 13em;">Largura do frame</div> <div id="txtFixedWidth"></div></div>
+<div class="_MB4"><div class="LBL TXTLBL" id="lblTxtFixedHeight" style="width: 13em;">Altura do frame</div> <div id="txtFixedHeight"></div></div>
+<div  class="_MB4 _HID" aria-hidden="true" id="rowFixedCount"><div class="LBL TXTLBL" id="lblTxtFixedCount" style="width: 13em;"></div> <div id="txtFixedCount"></div></div>
+<div class="BTN _MB4" id="btnFillFixedData">Adivinhar os valores com base na imagem</div><br />
+<div class="BTN" id="btnFixedFrameCount">Recalcular quantidade de frames com base na largura e na altura</div>
+</div>
+<div id="panelCustom" class="_HID" aria-hidden="true">
+<div class="INLCTRL _TAC"><div class="LBL TXTLBL" id="lblFrames">Frames</div><br />
+<div id="listFrames"></div></div><div class="INLCTRL _ML4">
+<div class="LBL TXTLBL"> </div><br /><div class="BTN BLK" id="btnMoveFrameUp">&#9650; Subir selecionado</div>
+<div class="BTN BLK" id="btnMoveFrameDown">&#9660; Descer selecionado</div>
+<br />
+<div class="BTN BLK" id="btnCloneFrame">Duplicar selecionado</div>
+<br />
+<div class="BTN BLK" id="btnRemoveFrame">Remover selecionado</div>
+<br />
+<br />
+<div class="BTN BLK" id="btnRemoveAllFrames">Remover todos</div>
+</div>
+</div>
+</div>
+
+<div id="miscTB" class="TLB _MT4" role="toolbar">
+<div id="imgInfo" class="LBL TXTLBL">[Nenhuma imagem]</div>
+<div id="customTB" class="_HID" aria-hidden="true">
+<div class="TLBSEPH"></div>
+<div class="LBL TXTLBL _MR4">Frame</div><div class="BTN BTNTLB" id="btnNewFrame">Criar</div><div class="BTN BTNTLB _ML4" id="btnUpdateFrame">Atualizar</div>
+<div class="TLBSEP"></div>
+<div class="LBL TXTLBL _MR4" id="lblTxtCustomX">Posição</div><div id="txtCustomX"></div><div class="LBL">,</div><div id="txtCustomY"></div>
+<div class="LBL TXTLBL _MR4" id="lblTxtCustomW">Dimensão</div><div id="txtCustomW"></div><div class="LBL">x</div><div id="txtCustomH"></div>
+</div>
+<div id="customTB2" class="_HID" aria-hidden="true">
+<div class="TLBSEPH"></div>
+<div class="LBL TXTLBL _MR4" id="lblTxtCustomOX">Origem</div><div id="txtCustomOX"></div><div class="LBL">,</div><div id="txtCustomOY"></div>
+<div id="chkShowOrigin"></div>
+<div id="chkEditOrigin"></div>
+<div class="TLBSEP"></div>
+<div class="LBL NOTE">Clique e arraste a área escura para alterar o frame</div>
+</div>
+</div>
+<div id="imgContainer" class="_MT4 _HID" aria-hidden="true" style="position: relative; overflow: auto; padding: 0px;">
+<img id="img" alt="Sprite" src="/favicon.ico" class="BRD" />
+<div id="selArea" style="overflow: visible; outline: 0px none transparent; cursor: move; z-index: 1; position: absolute; left: 1px; top: 1px; width: 32px; height: 32px; background-color: rgba(0, 0, 0, 0.3);" class="_HID" aria-hidden="true">
+<div id="selAreaO" style="outline: 0px none transparent; z-index: 2; position: absolute; left: -10px; top: -10px; width: 21px; height: 21px; background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUAAAAVCAYAAACpF6WWAAAAAXNSR0IArs4c6QAAAEhJREFUOMvtkyESACAQAsHx/1/GYrgxKEGTUK4wO4RbwIgkzSOn3/AggQZ6OXQemiQXEfZ9AI4lrIKdyt0xrwyFaWrcD/RP6AA4JSINRZ9SBAAAAABJRU5ErkJggg==);"></div>
+<div id="selAreaW" style="outline: 0px none transparent; cursor: w-resize; z-index: 3; position: absolute; left: 0px; top: 20%; width: 10pt; height: 60%;"></div>
+<div id="selAreaE" style="outline: 0px none transparent; cursor: e-resize; z-index: 4; position: absolute; right: 0px; top: 20%; width: 10pt; height: 60%;"></div>
+<div id="selAreaN" style="outline: 0px none transparent; cursor: n-resize; z-index: 5; position: absolute; left: 20%; top: 0px; width: 60%; height: 10pt;"></div>
+<div id="selAreaS" style="outline: 0px none transparent; cursor: s-resize; z-index: 6; position: absolute; left: 20%; bottom: 0px; width: 60%; height: 10pt;"></div>
+<div id="selAreaNW" style="outline: 0px none transparent; cursor: nw-resize; z-index: 7; position: absolute; left: 0px; top: 0px; width: 20%; height: 20%;"></div>
+<div id="selAreaNE" style="outline: 0px none transparent; cursor: ne-resize; z-index: 8; position: absolute; right: 0px; top: 0px; width: 20%; height: 20%;"></div>
+<div id="selAreaSW" style="outline: 0px none transparent; cursor: sw-resize; z-index: 9; position: absolute; left: 0px; bottom: 0px; width: 20%; height: 20%;"></div>
+<div id="selAreaSE" style="outline: 0px none transparent; cursor: se-resize; z-index: 10; position: absolute; right: 0px; bottom: 0px; width: 20%; height: 20%;"></div>
+</div>
+</div>
+
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

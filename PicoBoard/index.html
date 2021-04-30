@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head data-nores="1">
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=614" />
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Scratch e PicoBoard</title>
+	<link rel="stylesheet" type="text/css" href="/mainnr.css" />
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	function main() {
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="document" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<h1>Scratch</h1>
+<p>Esses são alguns jogos criados por mim, no <a href="http://scratch.mit.edu">Scratch</a>, que costumo utilizar em demonstrações. Deixo eles aqui para que o pessoal baixe, modifique e melhore, sem dó! :)</p>
+
+<h2>Ping Pong 2D</h2>
+<p><img style="float: left; margin-right: 4pt;" alt="Ping Pong 2D" src="/Images/pingpong.png" width="120" height="90" />O Ping Pong 2D funciona no modo para um jogador (Solitário) e para dois jogadores (Com um amigo), bastando utilizar as setas para selecionar a opção desejada, confirmando com a tecla espaço.</p>
+<p>O objetivo é não deixar que a bolinha quicante encoste nos cantos da tela. Para isso, os jogadores devem rebatê-la controlando pás verticais e horizontais. Perde aquele que chegar ficar com 0 vidas primeiro.<br />Quando estiver jogando sozinho, o objetivo é aguentar o máximo de tempo possível, sem deixar que as vidas cheguem à 0!</p>
+<p>No modo para um jogador, é necessário utilizar a PicoBoard ou utilizar o PicoBoard Emulator e um joystick que tenha uma entrada analógica, pois o jogador irá controlar sozinho tanto as pás horizontais como verticais. As pás horizontais estão atreladas ao sensor "Resistência-A" do Scratch, e as verticais, ao sensor "Resistência-B".</p>
+<p>No modo para dois jogadores:<br />- Jogador 1: controla as pás verticais com as teclas 2 (Sobe) e 8 (Desce)<br />- Jogador 2: controla as pás horizontais com as setas direita/esquerda do teclado.</p>
+<p><a href="/Files/PingPong.zip">Fazer download</a> (zip, 2296127 bytes)</p>
+
+<h2>Arremesso de Porcos</h2>
+<p><img style="float: left; margin-right: 4pt;" alt="Arremesso de Porcos" src="/Images/porco.png" width="120" height="90" />Nesse jogo, o primeiro jogador controla um passarinho azul (twitter...) que deve fugir de um arremessador de porcos, controlado pelo segundo jogador.</p>
+<p>Para controlar o pássaro:<br />- setas direita/esquerda para mover<br />- 1 para voar.</p>
+<p>Para controlar o arremessador, basta fazer um barulho alto que um porco é arremessado (o movimento é automático, controlado por um filtro passa-baixas simples).</p>
+<p>A versão original utilizava o sensor de som da PicoBoard, porém foi adaptada para utilizar o microfone do computador <span class="NOTE">(Dê uma olhada no começo do jogo sobre informações de onde parte das imagens do jogo foram baixadas!)</span>.</p>
+<p><a href="/Files/Porco.zip">Fazer download</a> (zip, 1348316 bytes)</p>
+
+<h1>PicoBoard</h1>
+
+<p>Quando comecei a dar aulas de lógica e algoritmos na faculdade, foi proposto utilizar uma ferramenta para auxiliar o aprendizado daqueles que ainda estão dando seus primeiros passos nesse mundo da programação, o Scratch.</p>
+<p>O Scratch, ferramenta desenvolvida pelo <a href="http://llk.media.mit.edu/">Lifelong Kindergarten Group</a>, grupo que faz parte do <a href="http://www.media.mit.edu/">Media Lab</a> do Massachusetts Institute of Technology, <a href="http://mit.edu/">MIT</a>, oferece um ambiente inteiramente gráfico e bem amigável, o que sempre leva os alunos a querer desenvolver jogos. Normalmente são jogos simples, mas são jogos! :)</p>
+<p><span style="text-align: center; font-size: 8pt; float: left;"><img alt="PicoBoard" src="/Images/picoboard.png" width="146" height="118" /><br />PicoBoard</span>Apesar de todas as funcionalidades oferecidas pela versão atual, 1.4, ainda ele ainda não possui uma devida <b>integração com joysticks</b>. Por isso criei um pequeno emulador para converter comandos de joystick em teclas de teclado convencional, além de converter os controles analógicos em pseudo-sinais provenientes da <a href="http://www.picocricket.com/picoboard.html">PicoBoard</a> (também encontrada <a href="http://www.sparkfun.com/products/10311">aqui</a>). A PicoBoard dá aos programadores uma oportunidade de interagir com um dispositivo externo, fugindo dos convencionais mouse e teclado, que possui meios de interação especiais, como sensores de som, luz e quaisquer outros que possam ser conectados eletronicamente à placa.</p>
+<p>Enfim, o emulador, chamado de PicoBoard Emulator, só se tornou possível graças à <a href="http://info.scratch.mit.edu/sites/infoscratch.media.mit.edu/files/file/ScratchBoardLicense.txt">licença</a> que o MIT colocou sobre o projeto da placa e graças a <a href="http://info.scratch.mit.edu/Sensor_Board">especificação</a> da placa, também fornecida pelo MIT.</p>
+<p style="text-align: center; font-size: 8pt;"><img alt="PicoBoard Emulator" src="/Images/picoboardemu.png" width="327" height="249" /><br />PicoBoard Emulator</p>
+
+<hr />
+
+<p>Ao fazer o download do PicoBoard Emulator você concorda com os <a href="/Files/PicoBoardEmulatorLicense.txt">termos de uso</a> do programa.</p>
+<table style="margin-left: auto; margin-right: auto; border-spacing: 8pt;">
+	<tr><td style="text-align: center; padding: 4pt;"><b>Windows 32 bits</b></td><td style="text-align: center; padding: 4pt;"><b>Windows 64 bits</b></td></tr>
+	<tr><td style="text-align: center; padding: 4pt;"><a href="/Files/setup32.exe">Arquivo de instalação</a> (exe, 220481 bytes)</td>
+	<td style="text-align: center; padding: 4pt;"><a href="/Files/setup64.exe">Arquivo de instalação</a> (exe, 215967 bytes)</td></tr>
+	<tr><td style="text-align: center; padding: 4pt;"><a href="/Files/PicoBoardEmulator32.zip">Apenas o executável</a> (zip, 138973 bytes)</td>
+	<td style="text-align: center; padding: 4pt;"><a href="/Files/PicoBoardEmulator64.zip">Apenas o executável</a> (zip, 127271 bytes)</td></tr>
+</table>
+
+<hr />
+
+<p>By downloading PicoBoard Emulator you agree with the <a href="/Files/PicoBoardEmulatorLicense.txt">terms of use</a>.</p>
+<table style="margin-left: auto; margin-right: auto; border-spacing: 8pt;">
+	<tr><td style="text-align: center; padding: 4pt;"><b>Windows 32 bits</b></td><td style="text-align: center; padding: 4pt;"><b>Windows 64 bits</b></td></tr>
+	<tr><td style="text-align: center; padding: 4pt;"><a href="/Files/setup32.exe">Setup file</a> (exe, 220481 bytes)</td>
+	<td style="text-align: center; padding: 4pt;"><a href="/Files/setup64.exe">Setup file</a> (exe, 215967 bytes)</td></tr>
+	<tr><td style="text-align: center; padding: 4pt;"><a href="/Files/PicoBoardEmulator32.zip">Executable only</a> (zip, 138973 bytes)</td>
+	<td style="text-align: center; padding: 4pt;"><a href="/Files/PicoBoardEmulator64.zip">Executable only</a> (zip, 127271 bytes)</td></tr>
+</table>
+
+<p>The default language of the software is Portuguese. If you wish to use it in another language, you must download an <a href="/Files/PicoBoardEmulator.txt">Unicode translation file</a> which must be placed in the same folder as the executable file. This download is necessary for those downloading only the executable file as the setup file already contains an option to install the translation file.</p>
+
+<p>You can also download <a href="http://nsis.sourceforge.net/Download">NSIS</a> <a href="/Files/NSIS.zip">scripts</a> to create your own installation files.</p>
+
+<hr />
+
+<p>Para utilizar apenas a funcionalidade de conversão de joystick para teclado, basta fazer o download acima. Contudo, para utilizar a funcionalidade completa de emulação dos sensores da placa real, é necessário instalar algum software extra para realizar a comunicação entre o PicoBoard Emulator e o Scratch, como o <a href="http://sourceforge.net/projects/com0com/">com0com</a>.</p>
+<p>O com0com é um software que possibilita a comunicação entre processos através de comunicação serial virtual. É gratuito e pode ser baixado no próprio <a href="http://sourceforge.net/projects/com0com/">site do projeto</a> <span class="NOTE">(A versão utilizada durante os testes foi a 2.2.2.0)</span>.</p>
+
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

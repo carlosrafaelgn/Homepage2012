@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Exemplo de Tela de Cadastro</title>
+	<link rel="stylesheet" type="text/css" href="/main.css" />
+	<style type="text/css">
+		#tbl {
+			width: 100%;
+		}
+		#tbl, #tblEdit {
+			border-collapse: collapse;
+		}
+		#tbl td, #tblEdit td {
+			vertical-align: middle;
+		}
+		#tblEdit {
+			margin: 0px auto;
+		}
+		#divList, #divEdition {
+			margin: 0px auto;
+			max-width: 550px;
+		}
+		.LH {
+			font-weight: bold;
+		}
+		.LR {
+			background-color: #fff;
+		}
+	</style>
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	//tudo misturado, mas é simples, pequeno e efetivo! ;)
+	function Record(id, picture, name, mail) {
+		this.id = id;
+		this.picture = Record.prototype.createPictureElement(picture);
+		this.name = name;
+		this.mail = mail;
+	}
+	Record.prototype = {
+		tbl: null,
+		divList: null,
+		divEdition: null,
+		divImg: null,
+		txtName: null,
+		txtMail: null,
+		txtFile: null,
+		chkRemove: null,
+		nextId: 0,
+		possiblyHasFile: false,
+		editingRow: null,
+		init: function () {
+			Record.prototype.tbl = $("tbl");
+			Record.prototype.divList = $("divList");
+			Record.prototype.divEdition = $("divEdition");
+			Record.prototype.divImg = $("divImg");
+			Record.prototype.txtName = $("txtName");
+			Record.prototype.txtMail = $("txtMail");
+			Record.prototype.txtFile = $("txtFile");
+			Record.prototype.chkRemove = new CheckBox(false, "Excluir foto existente");
+			Record.prototype.chkRemove.replaceControl($("chkRemove"));
+			attachMouse($("btnNew"), "click", Record.prototype.btnNew_Click);
+			attachMouse($("btnFile"), "click", Record.prototype.btnFile_Click);
+			attachMouse($("btnSave"), "click", Record.prototype.btnSave_Click);
+			attachMouse($("btnCancel"), "click", Record.prototype.btnCancel_Click);
+			attachObserver(Record.prototype.txtFile, "change", Record.prototype.txtFile_Change);
+			return true;
+		},
+		showNotSupported: function () {
+			Popup.showError("Aparentemente seu browser não possui a API necessária para acessar arquivos locais! :(");
+			return true;
+		},
+		btnNew_Click: function () {
+			Record.prototype.editingRow = null;
+			Record.prototype.refreshEdition();
+			Elem.hide(Record.prototype.divList);
+			Elem.show(Record.prototype.divEdition);
+			return true;
+		},
+		btnFile_Click: function () {
+			Record.prototype.possiblyHasFile = true;
+			Record.prototype.txtFile.click();
+			return true;
+		},
+		btnSave_Click: function () {
+			//primeiro valida tudo, depois verifica se é uma atualização ou criação
+			var name = trim(Record.prototype.txtName.value), mail = trim(Record.prototype.txtMail.value), final;
+			if (name.length < 1 || mail.length < 1) {
+				Popup.showError("Os campos Nome e E-Mail são obrigatórios!");
+				return true;
+			}
+			final = function (picture, deletePicture) {
+				if (Record.prototype.divImg.firstChild)
+					Record.prototype.divImg.removeChild(Record.prototype.divImg.firstChild);
+				if (Record.prototype.editingRow)
+					Record.prototype.update(deletePicture, picture, name, mail);
+				else
+					Record.prototype.create(deletePicture ? null : picture, name, mail);
+				Record.prototype.editingRow = null;
+				Elem.hide(Record.prototype.divEdition);
+				Elem.show(Record.prototype.divList);
+				return true;
+			};
+			if (Record.prototype.chkRemove.isChecked())
+				final(null, true);
+			else
+				Record.prototype.loadPicture(final);
+			return true;
+		},
+		btnCancel_Click: function () {
+			var row = Record.prototype.editingRow, r;
+			if (Record.prototype.divImg.firstChild)
+				Record.prototype.divImg.removeChild(Record.prototype.divImg.firstChild);
+			if (row) {
+				r = row.r;
+				if (r.picture.parentNode)
+					r.picture.parentNode.removeChild(r.picture);
+				row.childNodes[1].appendChild(r.picture);
+				Record.prototype.editingRow = null;
+			}
+			Record.prototype.editingRow = null;
+			Elem.hide(Record.prototype.divEdition);
+			Elem.show(Record.prototype.divList);
+			return true;
+		},
+		txtFile_Change: function () {
+			var f = Record.prototype.txtFile.files;
+			if (!f)
+				return Record.prototype.showNotSupported();
+			if (!f.length || !f[0])
+				$("btnFile").innerHTML = "Escolher nova foto...";
+			else
+				$("btnFile").innerHTML = f[0].name + " (...)";
+			return true;
+		},
+		loadPicture: function (imageLoaded) {
+			var f = Record.prototype.txtFile.files, reader;
+			if (!Record.prototype.possiblyHasFile || !f || !f.length || !f[0]) {
+				imageLoaded(null);
+				return false;
+			}
+			f = f[0];
+			if (!f.type.match("image/*")) {
+				Popup.showError("Por favor, selecione uma imagem válida!");
+				return false;
+			}
+			reader = new FileReader();
+			attachObserver(reader, "error", function (err) {
+				Popup.showError("Ocorreu um erro ao tentar acessar o arquivo " + f.name + "!<br /><br />Isso pode ter ocorrido devido a permissões do browser. Possíveis correções são:<br />- Acessar essa página através de um servidor web, em vez de acessar o arquivo localmente<br />- Se você estiver utilizando o Chrome, execute o browser com a opção --allow-file-access-from-files<br />- Utilize outros browsers, como Firefox ou Opera");
+				return true;
+			});
+			attachObserver(reader, "load", function () {
+				var pic = new Image();
+				attachObserver(pic, "load", function () {
+					imageLoaded(pic);
+					return true;
+				});
+				attachObserver(pic, "error", function () {
+					Popup.showError("Erro ao carregar a imagem " + f.name + "!");
+					return true;
+				});
+				pic.src = reader.result;
+				return true;
+			});
+			reader.readAsDataURL(f);
+			return true;
+		},
+		tblBtnEdit_Click: function () {
+			Record.prototype.editingRow = this.parentNode.parentNode;
+			Record.prototype.refreshEdition();
+			Elem.hide(Record.prototype.divList);
+			Elem.show(Record.prototype.divEdition);
+			return true;
+		},
+		tblBtnRemove_Click: function () {
+			Popup.showYesNo("Deseja mesmo excluir \"" + this.parentNode.parentNode.r.name + "\"?", "Oops...", Record.prototype.remove, this.parentNode.parentNode);
+			return true;
+		},
+		create: function (picture, name, mail) {
+			var tbl = Elem.tableBody(Record.prototype.tbl), btn,
+			r = new Record(++Record.prototype.nextId, picture, name, mail), tr, td;
+
+			tr = document.createElement("tr");
+			tr.r = r;
+
+			td = document.createElement("td");
+			td.className = "_PA4";
+			td.appendChild(document.createTextNode(r.id));
+			tr.appendChild(td);
+
+			td = document.createElement("td");
+			td.className = "_PA4 _TAC";
+			td.appendChild(r.picture);
+			tr.appendChild(td);
+
+			td = document.createElement("td");
+			td.className = "_PA4";
+			td.appendChild(document.createTextNode(r.name));
+			tr.appendChild(td);
+
+			td = document.createElement("td");
+			td.className = "_PA4";
+			td.appendChild(document.createTextNode(r.mail));
+			tr.appendChild(td);
+
+			td = document.createElement("td");
+			td.className = "_PA4 _TAC";
+			Elem.createButton("Editar", td, Record.prototype.tblBtnEdit_Click);
+			tr.appendChild(td);
+
+			td = document.createElement("td");
+			td.className = "_PA4 _TAC";
+			Elem.createButton("Excluir", td, Record.prototype.tblBtnRemove_Click);
+			tr.appendChild(td);
+
+			tbl.appendChild(tr);
+
+			Record.prototype.refreshRows();
+
+			return r;
+		},
+		remove: function (row, opt) {
+			if (!opt)
+				return true;
+			delete row.r;
+			row.parentNode.removeChild(row);
+			return Record.prototype.refreshRows();
+		},
+		createPictureElement: function (picture) {
+			var p;
+			if (!picture) {
+				p = new Image();
+				p.src = "/Images/cadastrovazio.png";
+				return p;
+			}
+			if (picture.width > picture.height) {
+				if (picture.width > 100) {
+					picture.height = 100 * picture.height / picture.width;
+					if (picture.height < 1)
+						picture.height = 1;
+					picture.width = 100;
+				}
+			} else if (picture.height > 100) {
+				picture.width = 100 * picture.width / picture.height;
+				if (picture.width < 1)
+					picture.width = 1;
+				picture.height = 100;
+			}
+			return picture;
+		},
+		update: function (deletePicture, picture, name, mail) {
+			var row = Record.prototype.editingRow, r = row.r;
+
+			if (r.picture.parentNode)
+				r.picture.parentNode.removeChild(r.picture);
+			if (deletePicture)
+				r.picture = Record.prototype.createPictureElement(null);
+			else if (picture)
+				r.picture = Record.prototype.createPictureElement(picture);
+			row.childNodes[1].appendChild(r.picture);
+
+			r.name = name;
+			r.mail = mail;
+			row.childNodes[2].replaceChild(document.createTextNode(name), row.childNodes[2].firstChild);
+			row.childNodes[3].replaceChild(document.createTextNode(mail), row.childNodes[3].firstChild);
+			return true;
+		},
+		refreshRows: function () {
+			var tbl = Elem.tableBody(Record.prototype.tbl), i;
+			for (i = 1; i < tbl.childNodes.length; i++) {
+				tbl.childNodes[i].className = ((i & 1) ? "BRD" : "BRD LR");
+			}
+			return true;
+		},
+		refreshEdition: function () {
+			var row = Record.prototype.editingRow, r;
+			if (Record.prototype.divImg.firstChild)
+				Record.prototype.divImg.removeChild(Record.prototype.divImg.firstChild);
+			Record.prototype.chkRemove.setChecked(false);
+			Record.prototype.possiblyHasFile = false;
+			$("btnFile").innerHTML = "Escolher nova foto...";
+			if (row) {
+				r = row.r;
+				if (r.picture.parentNode)
+					r.picture.parentNode.removeChild(r.picture);
+				Record.prototype.txtName.value = r.name;
+				Record.prototype.txtMail.value = r.mail;
+				Elem.show(Record.prototype.divImg);
+				Record.prototype.divImg.appendChild(r.picture);
+			} else {
+				Record.prototype.txtName.value = "";
+				Record.prototype.txtMail.value = "";
+				Elem.hide(Record.prototype.divImg);
+			}
+			return true;
+		}
+	};
+	function main() {
+		Record.prototype.init();
+		Record.prototype.create(undefined, "Carlos", "xxx@yyy.com.br");
+		Record.prototype.create(undefined, "Rafael", "yyy@yyy.com.br");
+		Record.prototype.create(undefined, "Fulano", "zzz@yyy.com.br");
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div class="COLHLDR"><div class="COL"><p>O objetivo é criar uma ou mais páginas para replicar o comportamento abaixo, utilizando ASP.Net. Se desejar, você pode alterar o layout, criar mais campos, e até remover alguns, mas a foto é obrigatória!</p></div><div class="COL2">
+<p>Preste atenção a um detalhe: as imagens não estão sendo efetivamente tratadas e redimensionadas... Se você acrescentar uma imagem grande, ela apenas aparecerá pequena, mas continuará acupando muita memória. Um sistema real deve ser capaz de gerar miniaturas reais das imagens!</p></div></div>
+
+<div class="SEP"></div>
+
+<div id="divList">
+<div class="BTN _MB4" id="btnNew">Novo...</div>
+<table id="tbl" class="BRD"><tr class="BRD LR"><td class="_PA4 _TAC LH">Id</td><td class="_PA4 _TAC LH">Foto</td><td class="_PA4 _TAC LH">Nome</td><td class="_PA4 _TAC LH">E-Mail</td><td class="_PA4 _TAC LH">Editar</td><td class="_PA4 _TAC LH">Excluir</td></tr></table>
+</div>
+
+<div id="divEdition" class="BRD _HID">
+<table id="tblEdit">
+<tr><td class="_PA4 TXTLBL" id="lblNome">Nome</td><td class="_PA4"><input type="text" id="txtName" style="width: 11em;" aria-labelledby="lblNome" /></td></tr>
+<tr><td class="_PA4 TXTLBL" id="lblMail">E-Mail</td><td class="_PA4"><input type="text" id="txtMail" style="width: 11em;" aria-labelledby="lblMail" /></td></tr>
+<tr><td class="_PA4 TXTLBL">Foto</td>
+<td class="_PA4">
+Foto atual<br />
+<div id="divImg"></div>
+<div class="SEP"></div>
+<div class="BTN" id="btnFile">Escolher nova foto...</div><div style="width: 0px; overflow: hidden; display: inline-block;"><input id="txtFile" type="file" /></div><br />
+<div id="chkRemove"></div>
+</td></tr>
+<tr><td colspan="2" class="_PA4" style="text-align: right;">
+<div id="btnSave" class="BTN">Salvar</div><div id="btnCancel" class="BTN _ML4">Cancelar</div>
+</td></tr>
+</table>
+</div>
+
+</div>
+
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

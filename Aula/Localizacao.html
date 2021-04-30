@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Localização Geográfica</title>
+	<link rel="stylesheet" type="text/css" href="/main.css" />
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript" charset="utf-8" src="/Aula/geometa.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	function getPosition() {
+		if (navigator.geolocation) {
+			navigator.geolocation.getCurrentPosition(showPosition, showError);
+		} else {
+			showError(-1);
+		}
+	}
+	function showPosition(pos) {
+		var coords = (pos.coords || pos.coordinate || pos);
+		Popup.showInfo("<b>Suas coordenadas</b><br />Latitude: " + coords.latitude + "<br />Longitude: " + coords.longitude + "<br />Precisão: " + coords.accuracy);
+		BasicLayout.goTo("http://maps.google.com/maps?q=" + coords.latitude + "," + coords.longitude, true);
+		return true;
+	}
+	function showError(err) {
+		var msg;
+		switch (err.code) {
+			case err.UNKNOWN_ERROR:
+				msg = "Não foi possível encontrar sua localização!";
+				break;
+			case err.PERMISSION_DENINED:
+				msg = "Não foi possível obter permissão para obter sua localização!";
+				break;
+			case err.POSITION_UNAVAILABLE:
+				msg = "Sua localização atual é desconhecida!";
+				break;
+			case err.BREAK:
+				msg = "A localização demorou muito!";
+				break;
+			default:
+				msg = "A detecção aparentemente não é suportada por seu browser!";
+				break;
+		}
+		Popup.showError(msg);
+		return true;
+	}
+	function main() {
+		attachMouse($("btnGetPosition"), "click", getPosition);
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div class="_TAC">
+<br /><br /><br />
+<div class="BTN" id="btnGetPosition">Obter minha posição...</div>
+<br /><br /><br />
+<div id="mapHolder" class="_FW"></div>
+</div>
+<h1>Informações úteis</h1>
+<div class="COLHLDR"><div class="COL">
+<p>Especificação oficial (ainda em fase preliminar) sobre geolocalização pela W3C: <a href="http://dev.w3.org/geo/api/">Geolocation API Specifications</a></p>
+<p>Script que efetua a geolocalização (cross-browser): <a href="http://google-ajax-examples.googlecode.com/svn/trunk/whereareyou/scripts/geometa.js">geometa.js</a> <span class="NOTE">(Veja o código fonte dessa página para um exemplo de como utilizar a API)</span></p>
+</div><div class="COL2">
+<p>API do Google: <a href="https://developers.google.com/latitude/">Google Latitude API</a></p>
+<p>Outro exemplo de como utilizar a API: <a href="http://gmaps-samples-v3.googlecode.com/svn/trunk/geolocate/geolocate.html">Where Am I?</a></p>
+</div></div>
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

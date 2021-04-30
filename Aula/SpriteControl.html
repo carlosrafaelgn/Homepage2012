@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head data-nores="1">
+	<meta charset="utf-8" />
+	<script type="text/javascript">//<![CDATA[
+		"use strict"; (function () { var vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); vp.setAttribute("content", ((screen.availWidth >= 712) || (screen.availHeight >= 712)) ? "width=device-width, initial-scale=1" : "width=712"); document.head.appendChild(vp); })(); //]]>
+	</script>
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Controle de Sprites</title>
+	<link rel="stylesheet" type="text/css" href="/mainnr.css" />
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript" charset="utf-8" src="SpriteControl.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	var bg, lastTime, sky1, sky2, ladybug, flares, trees, skySpeed, windSpeed,
+		treeSpeed, treeSpeedByLevel, treeSpeedModifier, treeWindRadians, treeWindSpeedByLevel;
+
+	function processFrame(delta) {
+		var i;
+		if (ladybug.isMoving) {
+			treeSpeedModifier += delta * 0.25;
+			if (treeSpeedModifier > 1)
+				treeSpeedModifier = 1;
+			for (i = 0; i < 3; i++)
+				treeSpeedByLevel[i] = treeSpeed[i] * treeSpeedModifier;
+		} else {
+			if (treeSpeedModifier) {
+				treeSpeedModifier -= delta;
+				if (treeSpeedModifier < 0)
+					treeSpeedModifier = 0;
+				for (i = 0; i < 3; i++)
+					treeSpeedByLevel[i] = treeSpeed[i] * treeSpeedModifier;
+			}
+		}
+		treeWindRadians += windSpeed * delta;
+		while (treeWindRadians >= 6.283185307179586)
+			treeWindRadians -= 6.283185307179586;
+
+		//the sky always moves, even when the ladybug is stopped
+		sky1.refX += skySpeed * delta;
+		while (sky1.refX >= 320)
+			sky1.refX -= (640 + 640);
+		sky1.x = (sky1.refX | 0); //truncate
+		if (sky1.x <= -320)
+			sky2.x = sky1.x + 640 + 640;
+		else
+			sky2.x = sky1.x;
+
+		for (i = 0; i < 21; i++) {
+			if (treeSpeedModifier)
+			{
+				trees[i].refX += treeSpeedByLevel[trees[i].level] * delta;
+				while (trees[i].refX >= (730 - 320))
+					trees[i].refX -= 820;
+			}
+			trees[i].x = trees[i].refX + (Math.sin(treeWindRadians + i) * treeWindSpeedByLevel[trees[i].level]);
+		}
+
+		ladybug.animate(delta);
+		if (ladybug.isMoving)
+		{
+			if (ladybug.refX > 400)
+			{
+				ladybug.refX -= 50 * delta;
+				if (ladybug.refX < 400)
+					ladybug.refX = 400;
+			}
+			if (ladybug.refY > 200)
+			{
+				ladybug.refY -= 50 * delta;
+				ladybug.scaleX = (480 - ladybug.refY) / 280;
+				if (ladybug.refY < 200)
+				{
+					ladybug.refY = 200;
+					ladybug.scaleX = 1;
+				}
+				ladybug.scaleY = ladybug.scaleX;
+			}
+			ladybug.flightAngle += delta * 0.75;
+			while (ladybug.flightAngle >= 6.283185307179586)
+				ladybug.flightAngle -= 6.283185307179586;
+		}
+		else
+		{
+			if (ladybug.refX < 600)
+			{
+				ladybug.refX += 100 * delta;
+				if (ladybug.refX > 600)
+					ladybug.refX = 600;
+			}
+			if (ladybug.refY < 480)
+			{
+				ladybug.refY += 100 * delta;
+				ladybug.scaleX = (480 - ladybug.refY) / 280;
+				if (ladybug.refY >= 480)
+				{
+					ladybug.refY = 480;
+					ladybug.scaleX = 0;
+				}
+				ladybug.scaleY = ladybug.scaleX;
+			}
+		}
+		ladybug.x = (ladybug.refX + (75 * Math.sin(ladybug.flightAngle))) - 320;
+		ladybug.y = 240 - (ladybug.refY + (35 * Math.cos(4 * ladybug.flightAngle)));
+		return true;
+	}
+
+	function update() {
+		var i, t = Date.now(), delta = (t - lastTime) / 1000;
+		lastTime = t;
+
+		processFrame(delta);
+
+		bg.setLightMode(false);
+
+		bg.drawSprite(sky2);
+		bg.drawSprite(sky1);
+
+		for (i = 0; i < 14; i++)
+			bg.drawSprite(trees[i]);
+
+		bg.drawSprite(ladybug);
+
+		for (; i < 21; i++)
+			bg.drawSprite(trees[i]);
+
+		bg.setLightMode(true);
+		for (i = 0; i < 8; i++)
+			bg.drawSprite(flares[i]);
+
+		bg.setLightMode(false);
+
+		return window.requestAnimationFrame(update);
+	}
+
+	function createBg() {
+		bg = new SpriteControl("bg", 640, 480);
+		//place coordinate (0, 0) at the center of the canvas
+		bg.viewX = -320;
+		bg.viewY = -240;
+		bg.onmousedown = function (viewX, viewY, button) {
+			ladybug.isMoving = !ladybug.isMoving;
+		};
+		bg.onmousemove = function (viewX, viewY, button) {
+		};
+		bg.onmouseup = function (viewX, viewY, button) {
+		};
+		bg.onkeydown = function (keyCode) {
+			switch (keyCode) {
+				case 38: //up
+					ladybug.isMoving = true;
+					break;
+				case 40: //down
+					ladybug.isMoving = false;
+					break;
+			}
+		};
+		bg.onkeyup = function (keyCode) {
+		};
+		return true;
+	}
+
+	function main() {
+		skySpeed = 35;
+		windSpeed = 1.6;
+		treeSpeed = [45, 85, 100];
+		treeSpeedByLevel = [0, 0, 0];
+		treeSpeedModifier = 0;
+		treeWindRadians = 0;
+		treeWindSpeedByLevel = [2.5, 4.5, 6.5];
+
+		SpriteUtils.loadImages(function (percentDone, images) {
+			document.getElementById("lblLoadPerc").innerHTML = (percentDone * 100).toFixed(1);
+			if (images) {
+				var i, f, t, dy, unit, level, treeXByUnit = [45, 165, 285, 375, 519, 613, 719],
+					treeDeltaYByLevel = [0, -5, 7, -3, -7, 2, -1],
+					treeForegroundDeltaYByLevel = [0, -4, 6, -2, -8, 4, -3],
+					treeYByLevel = [-85, -140, -220],
+					treeOpacityByLevel = [0.19, 0.41, 1],
+					treeSizeByLevel = [1.05, 1.06, 1.10];
+
+				i = document.getElementById("lblLoad");
+				i.parentNode.removeChild(i);
+
+				if (!images.joaninha || !images.joaninhaFundo) {
+					Popup.showError("Não foi possível carregar todas as imagens!");
+					return;
+				}
+
+				createBg();
+
+				sky1 = new Sprite(images.joaninhaFundo, SpriteUtils.singleFrame(640, 480, 0, 0, 0, 0));
+				sky1.x = 0;
+				sky1.refX = 0;
+				sky1.y = 241;
+				sky2 = sky1.createCopy();
+				sky2.scaleX = -1;
+
+				ladybug = new Sprite(images.joaninha, SpriteUtils.framesByColumns(225, 170, 12, 4));
+				ladybug.x = 600 - 320;
+				ladybug.refX = 600;
+				ladybug.y = 240 - 480;
+				ladybug.refY = 480;
+				ladybug.scaleX = 0;
+				ladybug.scaleY = 0;
+				ladybug.fps = 11.71875;
+				ladybug.isMoving = false;
+				ladybug.flightAngle = 0;
+
+				//create and setup the flares
+				f = new Sprite(images.joaninhaFundo, [
+					new Frame(63, 63, 850, 5, 31, 31),
+					new Frame(63, 63, 850, 80, 31, 31),
+					new Frame(154, 154, 650, 354, 77, 77),
+					new Frame(154, 154, 820, 354, 0, 0)
+				]);
+				flares = new Array(8);
+				flares[0] = f.createNew();
+				flares[0].currentFrame = 2;
+				flares[0].scaleX = 1.5;
+				flares[0].scaleY = 1.5;
+				flares[0].x = 70 - 320;
+				flares[0].y = 240 - 65;
+				flares[1] = f.createNew();
+				flares[1].scaleX = 0.8;
+				flares[1].scaleY = 0.8;
+				flares[1].x = 10 - 320;
+				flares[1].y = 240 - 10;
+				flares[2] = f.createNew();
+				flares[2].currentFrame = 1;
+				flares[2].scaleX = 0.5;
+				flares[2].scaleY = 0.5;
+				flares[2].x = 130 - 320;
+				flares[2].y = 240 - 101;
+				flares[3] = f.createNew();
+				flares[3].scaleX = 0.7;
+				flares[3].scaleY = 0.7;
+				flares[3].x = 190 - 320;
+				flares[3].y = 240 - 145;
+				flares[4] = f.createNew();
+				flares[4].x = 355 - 320;
+				flares[4].y = 240 - 245;
+				flares[5] = f.createNew();
+				flares[5].currentFrame = 1;
+				flares[5].scaleX = 1.2;
+				flares[5].scaleY = 1.2;
+				flares[5].x = 479 - 320;
+				flares[5].y = 240 - 314;
+				flares[6] = f.createNew();
+				flares[6].scaleX = 1.6;
+				flares[6].scaleY = 1.6;
+				flares[6].x = 549 - 320;
+				flares[6].y = 240 - 372;
+				flares[7] = f.createNew();
+				flares[7].currentFrame = 3;
+				flares[7].scaleX = 2.5;
+				flares[7].scaleY = 2.5;
+				flares[7].x = -324;
+				flares[7].y = 244;
+
+				//create and setup the trees
+				t = new Sprite(images.joaninhaFundo, SpriteUtils.singleFrame(180, 180, 650, 5, 92, 92));
+				trees = new Array(21);
+				for (i = 0; i < 21; i++) {
+					trees[i] = t.createNew();
+					unit = i % 7;
+					level = ((i / 7) | 0);
+
+					switch (unit) {
+						case 0:
+							dy = treeDeltaYByLevel[unit];
+							break;
+						case 1:
+							dy = -treeDeltaYByLevel[unit];
+							break;
+						default:
+							dy = treeForegroundDeltaYByLevel[unit];
+							break;
+					}
+
+					trees[i].x = treeXByUnit[unit] - 320;
+					trees[i].refX = trees[i].x;
+					trees[i].level = level;
+					trees[i].y = treeYByLevel[level] + dy;
+					trees[i].opacity = treeOpacityByLevel[level];
+					trees[i].scaleX = treeSizeByLevel[level];
+					trees[i].scaleY = treeSizeByLevel[level];
+				}
+
+				//start the animation now!
+				lastTime = Date.now();
+				window.requestAnimationFrame(update);
+			}
+		}, "/Images/joaninha.png", "/Images/joaninhaFundo.png");
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0" style="min-width: 648px;"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div style="text-align: center;"><div id="lblLoad">Por favor, aguarde o carregamento das imagens (<span id="lblLoadPerc">0</span>%)</div><div id="bg"></div></div>
+
+<h1>Funcionamento do Exemplo</h1>
+<p>Clique sobre a imagem para fazer com que a joaninha apareça ou desapareça.</p>
+
+<h1>Informações úteis</h1>
+<p><b>Dê uma olhada no código fonte utilizado nessa página, pois ele serve de exemplo!</b></p>
+<p>Scripts adicionais utilizados:<br />
+<a href="SpriteControl.js">SpriteControl.js</a></p>
+<p>Imagens utilizadas:<br />
+<a href="/Images/joaninha.png">Joaninha</a><br />
+<a href="/Images/joaninhaFundo.png">Fundo</a></p>
+
+<h1>Classes e Métodos</h1>
+<p>Aqui fica uma breve descrição da funcionalidade dos métodos e atributos das classes. Para mais informações, veja o código fonte dos scripts e dessa página.</p>
+<h2>Frame</h2>
+<p>A classe Frame representa um quadro da animação de um Sprite. Todo Sprite deve possuir ao menos um Frame.</p>
+<h3>Atributos</h3>
+<p>Todos os atributos dessa classe são somente para leitura.</p>
+<ul>
+	<li><span class="MONO">width</span>: Largura do quadro</li>
+	<li><span class="MONO">height</span>: Altura do quadro</li>
+	<li><span class="MONO">sourceX</span> e <span class="MONO">sourceY</span>: Posição do canto superior esquerdo do quadro dentro da imagem onde o quadro se encontra Coordenada que será considerada como centro do quadro (0,0 indica o canto superior esquerdo da imagem)</li>
+	<li><span class="MONO">originX</span> e <span class="MONO">originY</span>: Posição considerada como centro do quadro (0,0 indica o canto superior esquerdo do quadro)</li>
+	<li><span class="MONO">offsetX</span> e <span class="MONO">offsetY</span>: Complemento de <span class="MONO">originX</span> e <span class="MONO">originY</span>, dado como <span class="MONO">-originX</span> e <span class="MONO">-originY</span></li>
+</ul>
+<h3>Construtor</h3>
+<ul>
+	<li><span class="MONO">Frame(width, height, sourceX, sourceY, originX, originY)</span>: Todos os parâmetros do construtor são obrigatórios, e correspondem diretamente aos respectivos atributos explicados acima</li>
+</ul>
+<h2>SpriteUtils</h2>
+<p>SpriteUtils não é uma classe, mas um objeto com métodos auxiliares.</p>
+<h3>Métodos</h3>
+<ul>
+	<li><span class="MONO">fullFrame(image, frameOriginX, frameOriginY)</span>: Retorna um array com um único Frame que ocupa a área total da imagem dada, considerando <span class="MONO">frameOriginX</span> e <span class="MONO">frameOriginY</span> como sendo o centro desse Frame</li>
+	<li><span class="MONO">singleFrame(frameWidth, frameHeight, sourceX, sourceY, frameOriginX, frameOriginY)</span>: Retorna um array com um único Frame, com as dimensões dadas, considerando <span class="MONO">frameOriginX</span> e <span class="MONO">frameOriginY</span> como sendo o centro desse Frame</li>
+	<li><span class="MONO">framesByColumns(frameWidth, frameHeight, totalFrameCount, columnCount, sourceX, sourceY, frameOriginX, frameOriginY)</span>: Retorna um array com <span class="MONO">totalFrameCount</span> Frames, com as dimensões dadas, dispostos em linhas, onde cada linha possui <span class="MONO">columnCount</span> Frames (dispostos da esquerda para direita), considerando <span class="MONO">frameOriginX</span> e <span class="MONO">frameOriginY</span> como sendo o centro desses Frames (a posição do primeiro Frame é dada por <span class="MONO">sourceX</span> e <span class="MONO">sourceY</span>)</li>
+	<li><span class="MONO">framesByRows(frameWidth, frameHeight, totalFrameCount, rowCount, sourceX, sourceY, frameOriginX, frameOriginY)</span>: Retorna um array com <span class="MONO">totalFrameCount</span> Frames, com as dimensões dadas, dispostos em colunas, onde cada coluna possui <span class="MONO">rowCount</span> Frames (dispostos de cima para baixo), considerando <span class="MONO">frameOriginX</span> e <span class="MONO">frameOriginY</span> como sendo o centro desses Frames (a posição do primeiro Frame é dada por <span class="MONO">sourceX</span> e <span class="MONO">sourceY</span>)</li>
+	<li><span class="MONO">loadImages(callback, images)</span>: Carrega as imagens fornecidas em <span class="MONO">images</span> (que pode ser um array explícito de Strings ou várias Strings passadas como argumento) e conforme o carregamento for ocorrendo, a função <span class="MONO">callback</span> é chamada (<span class="MONO">callback</span> deve possuir dois parâmetros: <span class="MONO">percentDone</span> e <span class="MONO">images</span>, onde <span class="MONO">percentDone</span> vai de 0 à 1, indicando o progresso, e <span class="MONO">images</span> é um objeto com as imagens carregadas, ou <span class="MONO">null</span> caso o processo ainda não esteja concluído)</li>
+</ul>
+<h2>Sprite</h2>
+<h3>Atributos</h3>
+<ul>
+	<li><span class="MONO">image</span>: Imagem utilizada para desenhar os Frames do Sprite</li>
+	<li><span class="MONO">frames</span>: Array com os Frames do Sprite</li>
+	<li><span class="MONO">fps</span>: Velocidade da animação do Sprite, em Frames por segundo, caso o Sprite possua alguma animação</li>
+	<li><span class="MONO">currentFrame</span>: Índice do Frame atual dentro do array <span class="MONO">frames</span></li>
+	<li><span class="MONO">x</span> e <span class="MONO">y</span>: Posição do Sprite, dada com relação ao espaço do Mundo</li>
+	<li><span class="MONO">rotationDeg</span>: Ângulo de rotação do Sprite, em sentido anti-horário, variando de -360° até 360°</li>
+	<li><span class="MONO">rotation</span>: Valor em radianos do atributo <span class="MONO">rotationDeg</span> (<span class="MONO">rotation</span> não deve ser alterado manualmente, ele é alterado sempre que <span class="MONO">rotationDeg</span> for alterado)</li>
+	<li><span class="MONO">scaleX</span> e <span class="MONO">scaleY</span>: Valor do redimensionamento do Sprite, onde 1 é o tamanho original, 1.1 é 10% maior, e assim por diante</li>
+	<li><span class="MONO">opacity</span>: Opacidade do Sprite, onde 0 é totalmente transparente e 1 é opaco</li>
+	<li><span class="MONO">animationType</span>: Tipo de animação realizada pelo método <span class="MONO">animate()</span>, e pode ser <span class="MONO">Sprite.AnimationLooping</span> (valor padrão), <span class="MONO">Sprite.AnimationPingPong</span> e <span class="MONO">Sprite.AnimationOneShot</span></li>
+</ul>
+<h3>Métodos</h3>
+<ul>
+	<li><span class="MONO">createNew()</span>: Retorna um novo Sprite, copiando deste Sprite apenas os atributos <span class="MONO">image</span>, <span class="MONO">frames</span> e <span class="MONO">animationType</span></li>
+	<li><span class="MONO">createCopy()</span>: Retorna um novo Sprite, copiando todos os atributos deste Sprite</li>
+	<li><span class="MONO">containsPoint(worldX, worldY)</span>: Retorna <span class="MONO">true</span> se o ponto (<span class="MONO">worldX</span>, <span class="MONO">worldY</span>) estiver dentro do Sprite, caso contrário, retorna <span class="MONO">false</span> (o ponto deve ser dado com relação ao espaço do Mundo)</li>
+	<li><span class="MONO">toObjectSpace(worldX, worldY)</span>: Retorna um ponto (<span class="MONO">x</span>, <span class="MONO">y</span>) com as coordenadas (<span class="MONO">worldX</span>, <span class="MONO">worldY</span>) convertidas do espaço do Mundo para o espaço do Sprite</li>
+	<li><span class="MONO">toWorldSpace(objectX, objectY)</span>: Retorna um ponto (<span class="MONO">x</span>, <span class="MONO">y</span>) com as coordenadas (<span class="MONO">objectX</span>, <span class="MONO">objectY</span>) convertidas do espaço do Sprite para o espaço do Mundo</li>
+	<li><span class="MONO">animate(deltaTime)</span>: Atualiza o atributo <span class="MONO">currentFrame</span> com base no intervalo de tempo <span class="MONO">deltaTime</span>, dado em segundos, e conforme o tipo de animação especificado em <span class="MONO">animationType</span></li>
+</ul>
+<h3>Construtor</h3>
+<ul>
+	<li><span class="MONO">Sprite(image, frames)</span>: Todos os parâmetros do construtor são obrigatórios, e correspondem diretamente aos respectivos atributos explicados acima</li>
+</ul>
+<h2>SpriteControl</h2>
+<h3>Atributos</h3>
+<ul>
+	<li><span class="MONO">viewX</span> e <span class="MONO">viewY</span>: Posição do Mundo no canto inferior esquerdo da Vista</li>
+	<li><span class="MONO">onclick</span>: Função para ser chamada quando a Vista for clicada (deve ter três parâmetros: <span class="MONO">viewX</span>, <span class="MONO">viewY</span> e <span class="MONO">button</span>)</li>
+	<li><span class="MONO">onmousedown</span>: Função para ser chamada quando um botão for pressionado sobre a Vista (deve ter três parâmetros: <span class="MONO">viewX</span>, <span class="MONO">viewY</span> e <span class="MONO">button</span>)</li>
+	<li><span class="MONO">onmouseup</span>: Função para ser chamada quando um botão for solto (deve ter três parâmetros: <span class="MONO">viewX</span>, <span class="MONO">viewY</span> e <span class="MONO">button</span>)</li>
+	<li><span class="MONO">onmousemove</span>: Função para ser chamada quando o cursor se mover sobre a Vista (deve ter três parâmetros: <span class="MONO">viewX</span>, <span class="MONO">viewY</span> e <span class="MONO">button</span>)</li>
+	<li><span class="MONO">onkeydown</span>: Função para ser chamada quando um tecla do teclado for pressionada (deve ter um parâmetro: <span class="MONO">keyCode</span>)</li>
+	<li><span class="MONO">onkeyup</span>: Função para ser chamada quando um tecla do teclado for solta (deve ter um parâmetro: <span class="MONO">keyCode</span>)</li>
+</ul>
+<h3>Métodos</h3>
+<ul>
+	<li><span class="MONO">setLightMode(isLightMode)</span>: Altera o modo como os Sprites são desenhados (quando <span class="MONO">isLightMode</span> é <span class="MONO">true</span>, os Sprites são somados à imagem)</li>
+	<li><span class="MONO">toWorldSpace(viewX, viewY)</span>: Retorna um ponto (<span class="MONO">x</span>, <span class="MONO">y</span>) com as coordenadas (<span class="MONO">viewX</span>, <span class="MONO">viewY</span>) convertidas do espaço da Vista para o espaço do Mundo</li>
+	<li><span class="MONO">toViewSpace(worldX, worldY)</span>: Retorna um ponto (<span class="MONO">x</span>, <span class="MONO">y</span>) com as coordenadas (<span class="MONO">worldX</span>, <span class="MONO">worldY</span>) convertidas do espaço do Mundo para o espaço da Vista</li>
+	<li><span class="MONO">containsPoint(worldX, worldY)</span>: Retorna <span class="MONO">true</span> se o ponto (<span class="MONO">worldX</span>, <span class="MONO">worldY</span>) estiver dentro do Sprite, caso contrário, retorna <span class="MONO">false</span> (o ponto deve ser dado com relação ao espaço do Mundo)</li>
+	<li><span class="MONO">toObjectSpace(worldX, worldY)</span>: Retorna um ponto (<span class="MONO">x</span>, <span class="MONO">y</span>) com as coordenadas (<span class="MONO">worldX</span>, <span class="MONO">worldY</span>) convertidas do espaço do Mundo para o espaço do Sprite</li>
+	<li><span class="MONO">toWorldSpace(objectX, objectY)</span>: Retorna um ponto (<span class="MONO">x</span>, <span class="MONO">y</span>) com as coordenadas (<span class="MONO">objectX</span>, <span class="MONO">objectY</span>) convertidas do espaço do Sprite para o espaço do Mundo</li>
+	<li><span class="MONO">drawSprite(sprite)</span>: Desenha o Sprite <span class="MONO">sprite</span></li>
+	<li><span class="MONO">drawSpriteFrame(sprite, frameIndex)</span>: Desenha o quadro de índice <span class="MONO">frameIndex</span> do Sprite <span class="MONO">sprite</span></li>
+	<li><span class="MONO">drawStatic(sprite)</span>: Desenha o Sprite <span class="MONO">sprite</span>, ignorando os atributos <span class="MONO">viewX</span> e <span class="MONO">viewY</span>, ou seja, assumindo que a coordenada do canto inferior esquerdo da Vista seja (0, 0)</li>
+	<li><span class="MONO">drawStaticFrame(sprite, frameIndex)</span>: Desenha o quadro de índice <span class="MONO">frameIndex</span> do Sprite <span class="MONO">sprite</span>, ignorando os atributos <span class="MONO">viewX</span> e <span class="MONO">viewY</span>, ou seja, assumindo que a coordenada do canto inferior esquerdo da Vista seja (0, 0)</li>
+</ul>
+<h3>Construtor</h3>
+<ul>
+	<li><span class="MONO">SpriteControl(placeholderId, width, height)</span>: Cria a área de desenho dos Sprites, com dimensões <span class="MONO">width</span> x <span class="MONO">height</span>, no lugar do elemento HTML com id <span class="MONO">palceholderId</span></li>
+</ul>
+<p class="NOTE">Em todos os métodos mostrados acima, exceto no construtor da classe Frame, caso <span class="MONO">sourceX</span> ou <span class="MONO">sourceY</span> não sejam fornecidos, será considerado o valor padrão 0. Caso <span class="MONO">frameOriginX</span> ou <span class="MONO">frameOriginY</span> não sejam fornecidos, será considerado o valor padrão que é a metade da largura ou metade da altura do Frame.</p>
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Números Binários Negativos</title>
+	<link rel="stylesheet" type="text/css" href="/main.css" />
+	<style type="text/css">
+		._VALIDATOR {
+			display: inline-block;
+		}
+		.COLHLDR {
+			margin: 0px auto 12px;
+			max-width: 640px;
+		}
+		.COL, .COL2 {
+			text-align: center;
+		}
+		.H1NOPAD {
+			padding: 0px;
+			margin-left: 0px;
+			margin-right: 0px;
+		}
+	</style>
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	var nudBitCount, exerciseValue1, exerciseValue2, txtDecU, txtDecS, txtBin, txtHex, hasErrors, ignoreChanges, nudValue;
+
+	function getFieldText(value, step) {
+		switch (step) {
+			case 2:
+			case 9:
+				return (-value).toString();
+			case 3:
+			case 8:
+				return (-value - 1).toString();
+			case 4:
+			case 7:
+				value = (-value - 1);
+			case 5:
+			case 6:
+				var s, bitCount = nudBitCount.getValue();
+				value &= ((1 << bitCount) - 1);
+				s = value.toString(2);
+				while (s.length < bitCount)
+					s = "0" + s;
+				return s;
+		}
+		return value.toString();
+	}
+	function newExercise() {
+		var i, bitCount = nudBitCount.getValue(),
+		maxNeg = ((1 << bitCount) >> 1) - 1;
+		exerciseValue1 = -(Math.floor(Math.random() * maxNeg) + 1);
+		exerciseValue2 = -(Math.floor(Math.random() * maxNeg) + 1);
+		$("txtSD1").value = getFieldText(exerciseValue1, 1);
+		$("txtSB1").value = getFieldText(exerciseValue2, 6);
+		for (i = 2; i <= 5; i++) {
+			$("txtSD" + i).value = "";
+			$("txtSB" + i).value = "";
+		}
+		return true;
+	}
+	function validateExercise() {
+		var i, dlg, d;
+		for (i = 2; i <= 5; i++) {
+			if (getFieldText(exerciseValue1, i) !== $("txtSD" + i).value) {
+				Popup.showError("A " + i + "ª etapa da conversão de decimal para binário está errada!");
+				return false;
+			}
+		}
+		for (i = 2; i <= 5; i++) {
+			if (getFieldText(exerciseValue2, i + 5) !== $("txtSB" + i).value) {
+				Popup.showError("A " + i + "ª etapa da conversão de binário para decimal está errada!");
+				return false;
+			}
+		}
+		dlg = Popup.createDialog();
+		d = document.createElement("div");
+		d.className = "_PA4";
+		dlg.appendChild(d);
+		d.innerHTML = "<div class=\"_VAM INLCTRL\">" + Popup.createAvatar(true) + "</div><span class=\"_ML4 _VAM\" style=\"white-space: normal; font-size: larger; font-weight: bold;\">As conversões foram realizadas com sucesso!</span>";
+		d = document.createElement("div");
+		dlg.appendChild(d);
+		d.className = "DLGBTNCONTAINER";
+		Popup.show(dlg, true, Elem.createButton("OK", d, Popup.closeForever), "Parabéns!");
+		return true;
+	}
+	function showSecondary(value, exerciseMode) {
+		var i;
+		if (exerciseMode) {
+			$("sampleTitle").innerHTML = "Preencha os campos abaixo para valores com " + nudBitCount.getValue() + " bits";
+			Elem.show($("tbBtnExercise"));
+			for (i = 2; i <= 5; i++) {
+				$("txtSD" + i).readOnly = "";
+				$("txtSB" + i).readOnly = "";
+			}
+			newExercise();
+		} else {
+			$("sampleTitle").innerHTML = "Convertendo " + value + " de/para binário, através do método \"Complemento de 2\"";
+			Elem.hide($("tbBtnExercise"));
+			for (i = 2; i <= 5; i++) {
+				$("txtSD" + i).readOnly = "readonly";
+				$("txtSB" + i).readOnly = "readonly";
+			}
+			for (i = 1; i <= 5; i++) {
+				$("txtSD" + i).value = getFieldText(value, i);
+				$("txtSB" + i).value = getFieldText(value, i + 5);
+			}
+		}
+		Elem.hide($("main1"));
+		Elem.hide($("main2"));
+		Elem.show($("samples1"));
+		Elem.show($("samples2"));
+		Elem.show($("samples3"));
+		return true;
+	}
+	function showSample(value) {
+		var max = (1 << nudBitCount.getValue());
+		if (value < (max >> 1))
+			return Popup.showInfo("Para converter um número positivo para binário, basta utilizar sua técnica convencional.<br/><br/>Repare que todo número binário <b>negativo, inicia por 1</b>.", "Oops...");
+		return showSecondary(value - max, false);
+	}
+	function showExercise() {
+		return showSecondary(0, true);
+	}
+	function showHelp() {
+		return showSample(nudValue.getValue());
+	}
+	function showMain() {
+		Elem.show($("main1"));
+		Elem.show($("main2"));
+		Elem.hide($("samples1"));
+		Elem.hide($("samples2"));
+		Elem.hide($("samples3"));
+		return true;
+	}
+	function showWarning(type) {
+		var lblWarning = $("lblWarning");
+		switch (type) {
+			case 1:
+				lblWarning.innerHTML = "O valor digitado no campo excede os limites para um número com " + nudBitCount.getValue() + " bits!";
+				break;
+			case 2:
+				lblWarning.innerHTML = "O valor digitado no campo não é válido!";
+				break;
+			default:
+				lblWarning.innerHTML = "Digite em um campo para alterar todos os outros, ou utilize as setas acima e abaixo";
+				break;
+		}
+		return true;
+	}
+	function formatValue(txt, value, type) {
+		var s, bitCount = nudBitCount.getValue(), max = (1 << bitCount);
+		value &= (max - 1);
+		switch (type) {
+			case 1:
+				if (value >= (max >> 1))
+					value -= max;
+				txt.value = value.toString();
+				break;
+			case 2:
+				s = value.toString(2);
+				while (s.length < bitCount)
+					s = "0" + s;
+				txt.value = s;
+				break;
+			case 3:
+				if ((bitCount & 3))
+					bitCount += 4 - (bitCount & 3);
+				bitCount >>= 2;
+				s = value.toString(16);
+				while (s.length < bitCount)
+					s = "0" + s;
+				txt.value = s.toUpperCase();
+				break;
+			default:
+				txt.value = value.toString();
+				break;
+		}
+		return txt.value;
+	}
+	function refreshAll(value) {
+		var i = ignoreChanges;
+		ignoreChanges = -1;
+		if (!(i & 1))
+			formatValue(txtDecU, value, 0);
+		if (!(i & 2))
+			formatValue(txtDecS, value, 1);
+		if (!(i & 4))
+			formatValue(txtBin, value, 2);
+		if (!(i & 8))
+			formatValue(txtHex, value, 3);
+		ignoreChanges = 0;
+		return showWarning(0);
+	}
+	function nudBitCount_valueChanged(model, value) {
+		value = ((1 << value) - 1);
+		if (hasErrors) {
+			hasErrors = false;
+			showWarning(0);
+			nudValue.setValue(0);
+		} else {
+			nudValue.setValue(nudValue.getValue() & value);
+		}
+		nudValue.setMaximum(value);
+		return refreshAll(nudValue.getValue());
+	}
+	function nudValue_valueChanged(model, value) {
+		return refreshAll(value);
+	}
+	function keydownHandler(e, type) {
+		switch (e.keyCode) {
+			case 38: //up
+				if (!hasErrors)
+					nudValue.add(1);
+				return cancelEvent(e);
+			case 40: //down
+				if (!hasErrors)
+					nudValue.add(-1);
+				return cancelEvent(e);
+		}
+		return true;
+	}
+	function keydownHandler0(e) {
+		return keydownHandler(e, 0);
+	}
+	function keydownHandler1(e) {
+		return keydownHandler(e, 1);
+	}
+	function keydownHandler2(e) {
+		return keydownHandler(e, 2);
+	}
+	function keydownHandler3(e) {
+		return keydownHandler(e, 3);
+	}
+	function blurHandler() {
+		var i, v, iMask = (this === txtDecU ? 1 : (this === txtDecS ? 2 : (this === txtBin ? 4 : 8)));
+		if (!(ignoreChanges & iMask)) {
+			try {
+				v = parseInt(this.value, (iMask === 4 ? 2 : (iMask === 8 ? 16 : 10)));
+			} catch (ex) {
+			}
+			if (v !== nudValue.getValue() || hasErrors) {
+				i = ignoreChanges;
+				ignoreChanges = iMask;
+				if (isEmpty(v) || isNaN(v)) {
+					hasErrors = true;
+					showWarning(2);
+					ignoreChanges = -1;
+					eraseAllButThis(this);
+				} else if (v > nudValue.getMaximum() || v < -((nudValue.getMaximum() + 1) >> 1)) {
+					hasErrors = true;
+					showWarning(1);
+					ignoreChanges = -1;
+					eraseAllButThis(this);
+				} else {
+					if (v < 0)
+						v = nudValue.getMaximum() + 1 + v;
+					v &= nudValue.getMaximum();
+					if (hasErrors) {
+						hasErrors = false;
+						showWarning(0);
+						if (v === nudValue.getValue())
+							refreshAll(v);
+					}
+					nudValue.setValue(v);
+				}
+				ignoreChanges = i;
+			}
+		}
+		return true;
+	}
+	function eraseAllButThis(_this) {
+		if (_this !== txtDecU) txtDecU.value = "";
+		if (_this !== txtDecS) txtDecS.value = "";
+		if (_this !== txtBin) txtBin.value = "";
+		if (_this !== txtHex) txtHex.value = "";
+		return true;
+	}
+	function main() {
+		var i;
+		nudBitCount = new NumericUpDown(4, 20, 8, false);
+		nudBitCount.replaceControl($("nudBitCount"), 5.5, 2);
+		Elem.setLabelledBy($("lblBitCount"), $("nudBitCount"));
+		hasErrors = false;
+		ignoreChanges = 0;
+		nudValue = new NumericUpDown(0, 255, 0, true);
+		txtDecU = $("txtDecU");
+		txtDecS = $("txtDecS");
+		txtBin = $("txtBin");
+		txtHex = $("txtHex");
+		nudBitCount.onValueChanged.attach(nudBitCount_valueChanged);
+		nudValue.onValueChanged.attach(nudValue_valueChanged);
+		attachObserver(txtDecU, "blur", blurHandler);
+		attachObserver(txtDecS, "blur", blurHandler);
+		attachObserver(txtBin, "blur", blurHandler);
+		attachObserver(txtHex, "blur", blurHandler);
+		attachObserver(txtDecU, "change", blurHandler);
+		attachObserver(txtDecS, "change", blurHandler);
+		attachObserver(txtBin, "change", blurHandler);
+		attachObserver(txtHex, "change", blurHandler);
+		attachObserver(txtDecU, "keyup", blurHandler);
+		attachObserver(txtDecS, "keyup", blurHandler);
+		attachObserver(txtBin, "keyup", blurHandler);
+		attachObserver(txtHex, "keyup", blurHandler);
+		attachRepeatableKey(txtDecU, keydownHandler0);
+		attachRepeatableKey(txtDecS, keydownHandler1);
+		attachRepeatableKey(txtBin, keydownHandler2);
+		attachRepeatableKey(txtHex, keydownHandler3);
+		for (i = 1; i <= 5; i++) {
+			attachRepeatableKey($("txtSD" + i), keydownHandler1);
+			attachRepeatableKey($("txtSB" + i), keydownHandler1);
+		}
+		attachMouse($("btnShowExercise"), "click", showExercise);
+		attachMouse($("btnHelp"), "click", showHelp);
+		attachMouse($("btnShowMain"), "click", showMain);
+		attachMouse($("btnNewExercise"), "click", newExercise);
+		attachMouse($("btnValidate"), "click", validateExercise);
+		Elem.prepareTextControlLabel("1º Decimal com sinal (Valor original)", $("txtSD1"), undefined, 15);
+		Elem.prepareTextControlLabel("2º Remover o sinal", $("txtSD2"), undefined, 15);
+		Elem.prepareTextControlLabel("3º Subtrair 1", $("txtSD3"), undefined, 15);
+		Elem.prepareTextControlLabel("4º Converter para binário (normalmente)", $("txtSD4"), undefined, 15);
+		Elem.prepareTextControlLabel("5º Inverter os bits... Pronto!", $("txtSD5"), undefined, 15);
+		Elem.prepareTextControlLabel("1º Binário original (Iniciado por 1)", $("txtSB1"), undefined, 15);
+		Elem.prepareTextControlLabel("2º Inverter todos os bits", $("txtSB2"), undefined, 15);
+		Elem.prepareTextControlLabel("3º Converter para decimal (normalmente)", $("txtSB3"), undefined, 15);
+		Elem.prepareTextControlLabel("4º Somar 1", $("txtSB4"), undefined, 15);
+		Elem.prepareTextControlLabel("5º Colocar o sinal... Pronto!", $("txtSB5"), undefined, 15);
+		showWarning(0);
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div id="main1" class="TLB" role="toolbar">
+	<div class="LBL _MR4 TXTLBL" id="lblBitCount">Quantidade de bits na palavra</div><div id="nudBitCount"></div><div class="_RFLOATER _ML4">
+		<div class="BTN BTNTLB" id="btnShowExercise">Exercitar!</div>
+		<div id="btnHelp" class="BTN BTNTLB">Preciso de ajuda!</div>
+	</div>
+</div>
+<div id="main2">
+	<div class="COLHLDR"><div class="COL">
+	<h1 class="H1NOPAD" id="hBin">Binário</h1>
+	<input aria-labelledby="hBin" id="txtBin" type="text" value="00000000" class="_TAC" style="background-color: #ffff99; width: 15em" /></div><div class="COL2">
+	<h1 class="H1NOPAD" id="hDecU">Decimal sem sinal</h1>
+	<input aria-labelledby="hDecU" id="txtDecU" type="text" value="0" class="_TAC" style="background-color: #ffccff; width: 15em" /></div></div>
+	<div class="COLHLDR"><div class="COL">
+	<h1 class="H1NOPAD" id="hDecS">Decimal com sinal</h1>
+	<input aria-labelledby="hDecS" id="txtDecS" type="text" value="0" class="_TAC" style="background-color: #ff66ff; width: 15em" /></div><div class="COL2">
+	<h1 class="H1NOPAD" id="hHex">Hexadecimal</h1>
+	<input aria-labelledby="hHex" id="txtHex" type="text" value="00" class="_TAC" style="background-color: #ccff99; width: 15em" /></div></div>
+	<div class="_MT4 _TAC">
+		<div class="TLB"><div class="LBLBLK" id="lblWarning"></div></div>
+	</div>
+</div>
+
+<div id="samples1" class="TLB _HID" role="toolbar" aria-hidden="true">
+	<div class="BTN BTNTLB _MR4" id="btnShowMain" title="Voltar">&lt;</div><span class="LBLBLK" id="sampleTitle" style="font-weight: bold;"></span>
+	<div class="_RFLOATER _HID" id="tbBtnExercise" aria-hidden="true">
+		<div class="BTN BTNTLB" id="btnNewExercise">Novo</div>
+		<div class="BTN BTNTLB" id="btnValidate">Validar</div>
+	</div>
+</div>
+<div id="samples2" class="COLHLDR _HID" aria-hidden="true"><div class="COL">
+	<input id="txtSD1" type="text" class="_TAC" style="background-color: #ff66ff" readonly="readonly" />
+	<input id="txtSD2" type="text" class="_TAC" style="background-color: #ff8ce6" />
+	<input id="txtSD3" type="text" class="_TAC" style="background-color: #ffb1cc" />
+	<input id="txtSD4" type="text" class="_TAC" style="background-color: #ffd9b2" />
+	<input id="txtSD5" type="text" class="_TAC" style="background-color: #ffff99" />
+</div><div class="COL2">
+	<input id="txtSB1" type="text" class="_TAC" style="background-color: #ffff99" readonly="readonly" />
+	<input id="txtSB2" type="text" class="_TAC" style="background-color: #ffd9b2" />
+	<input id="txtSB3" type="text" class="_TAC" style="background-color: #ffb1cc" />
+	<input id="txtSB4" type="text" class="_TAC" style="background-color: #ff8ce6" />
+	<input id="txtSB5" type="text" class="_TAC" style="background-color: #ff66ff" />
+</div></div>
+<div id="samples3" class="_HID" aria-hidden="true">
+	<p>Lembre-se: a conversão de números <b>positivos</b>, números <b>sem sinal</b> e de números <b>binários iniciados por 0</b>, funciona <b>normalmente</b>!<br /><span class="NOTE">Existem outros métodos para realizar essas conversões, esse é apenas um deles. Na prova e no dia-a-dia, utilize o método que preferir!</span></p>
+</div>
+
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

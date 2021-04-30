@@ -1,0 +1,98 @@
+﻿//
+// FSPL.txt is distributed under the FreeBSD License
+//
+// Copyright (c) 2012, Carlos Rafael Gimenes das Neves
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met: 
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer. 
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation
+//    and/or other materials provided with the distribution. 
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// The views and conclusions contained in the software and documentation are those
+// of the authors and should not be interpreted as representing official policies, 
+// either expressed or implied, of the FreeBSD Project.
+//
+// http://carlosrafaelgn.com.br/WebGL/FSPL.txt
+//
+precision mediump float;
+
+uniform vec3 lightPosition;
+uniform bool useLight;
+uniform float diffuseLightIntensity, ambientLightIntensity, lightRange, lightAttenuation;
+
+varying vec4 position;
+varying vec4 normal;
+varying vec4 color;
+
+void main()
+{
+	//o uso de Point Lights supõe que elas são unidirecionais, logo, sua direção
+	//deve ser calculada para cada ponto, na forma final - inicial
+	//porém, pelo mesmo motivo já explicado no main do programa principal, deve-se
+	//utilizar -direção, por isso, em vez de fazer direção = final - inicial, já
+	//faz direção = inicial - final, nunca esquecendo de normalizar!
+	//
+	//ainda, aqui é necessário normalizar o normal, pois seu valor pode ter sido
+	//interpolado, e essa interpolação pode ter afetado a normalização original!!!
+	//
+	//opa... e ainda tem mais! essa equação utilizada NÃO leva em consideração o
+	//decaimento da intensidade luminosa conforme o objeto se distancia do ponto luminoso,
+	//logo, a iluminação recebida pelos objetos terá a mesma intensidade, independente
+	//de estarem mais próximos ou mais distantes da luz!
+
+	//lightAttenuation serve para ligar/desligar a atuação SEM utilizar if's
+	//quando lightAttenuation = 0, d sempre será 1!!! quando lightAttenuation = 1,
+	//d será proporcional à distância entre a luz e o ponto
+
+	//novamente, o algoritmo é esse, mas estamos fazendo com apenas uma linha
+	/*if (useLight) {
+		vec3 dir = lightPosition - position.xyz;
+		float d = length(dir);
+		//essa é uma possível equação para o decaimento... rápida, mas não muito real por ser linear
+		//d = 1.0 - min(d / lightRange, 1.0);
+		//
+		//essa já é um pouco mais real, pois tem uma componente quadrática...
+		//d = max(((lightRange - d) / lightRange), 0.0);
+		//d = d * d;
+		//
+		//a fórmula usualmente (DirectX e OpenGL) utilizada para a atenuação é:
+		//1 / (a + (b * d) + (c * d²))
+		//aqui estou utilizando como coeficientes:
+		//a = 1
+		//b, c = 1 / lightRange
+		//
+		//contudo, alterei um pouquinho a equação para forçar com que ela chegasse à 0, sem precisar de if's:
+		//((1 + k) / (a + (b * d) + (c * d²)) - k)
+		//onde k é o valor da equação original para d = 1 (alcance máximo)
+		d = max(((1.0 + (1.0 / (2.0 + lightRange))) / (1.0 + (d / lightRange) + ((d * d) / lightRange))) - (1.0 / (2.0 + lightRange)), 0.0);
+
+		dir = normalize(dir);
+		float diffuse = d * max(dot(normalize(normal.xyz), dir), 0.0);
+		vec2 tmp = vec2((diffuseLightIntensity * diffuse) + ambientLightIntensity, 1.0);
+		gl_FragColor = color.rgba * tmp.xxxy;
+	} else {
+		//apenas envia para a saída o valor recebido do outro shader
+		gl_FragColor = color;
+	}*/
+	vec3 dir = lightPosition - position.xyz;
+	float d = length(dir);
+	gl_FragColor = (useLight ? (color.rgba * vec2((diffuseLightIntensity * 
+	max(((1.0 + (1.0 / (2.0 + lightRange))) / (1.0 + (d / lightRange) + ((d * d) / lightRange))) - (1.0 / (2.0 + lightRange)), lightAttenuation)
+	 * max(dot(normalize(normal.xyz), normalize(dir)), 0.0)) + ambientLightIntensity, 1.0).xxxy) : color);
+}

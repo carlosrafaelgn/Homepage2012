@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head data-nores="1">
+	<meta charset="utf-8" />
+	<script type="text/javascript">//<![CDATA[
+		"use strict"; (function () { var vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); vp.setAttribute("content", ((screen.availWidth >= 614) || (screen.availHeight >= 614)) ? "width=device-width, initial-scale=1" : "width=614"); document.head.appendChild(vp); })(); //]]>
+	</script>
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Tipos de Animação</title>
+	<link rel="stylesheet" type="text/css" href="/mainnr.css" />
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+		//<![CDATA[
+		"use strict";
+
+		//Todos os ">> 20" e "<< 20" são parte de uma técnica antiga, utilizada em C/C++ para acrescentar
+		//bits de precisão em um número, tentando evitar o uso de ponto flutuante, com um certo grau de
+		//acerto. Nada disso é realmente necessário em JavaScript, mas vale pelo aprendizado! :)
+
+		//Já os "| 0", são uma forma alternativa de truncar o valor para um inteiro
+
+		var txtFps, chkV, chkB, animV, animVMinX, animVMinY, animVMaxY, animVW, animVWx2, animVWx2Scaled, animVWScaled, animVH, animVHx2, animVHx1_4Scaled, animVHx3_4, animVHScaled, animB, lastTime, fps, frameV, frameB;
+		if (!window.requestAnimationFrame) {
+			window.requestAnimationFrame = (window.webkitRequestAnimationFrame ||
+				window.mozRequestAnimationFrame ||
+				window.oRequestAnimationFrame ||
+				window.msRequestAnimationFrame ||
+				function (callback, element) { return window.setTimeout(function () { return callback(+new Date()); }, 1000 / 60); });
+		}
+		function drawFrame(time) {
+			if (lastTime < 0) lastTime = time;
+			var delta = time - lastTime, t, x, y, w, h;
+			lastTime = time;
+
+			//atualiza o frame de cada um dos objetos (o retângulo tem 10 frames, e o bitmap tem 12)
+			frameV = (frameV + (fps * delta)) % (10 << 20);
+			frameB = (frameB + (fps * delta)) % (12 << 20);
+
+			//anima o sprite
+			x = ((frameB >>> 20) & 3) * -225;
+			y = ((frameB >>> 20) >> 2) * -170;
+			animB.style.backgroundPosition = x + "px " + y + "px";
+
+			//anima a forma e posição do retângulo
+			switch ((frameV >>> 20)) {
+				case 0:
+				case 1:
+					t = frameV >>> 1;
+					w = (animVWx2Scaled - (t * animVW)) >>> 20;
+					h = (animVHx1_4Scaled + (t * animVHx3_4)) >>> 20;
+					x = animVW;
+					y = animVMaxY + (animVH - h);
+					break;
+			
+				case 2:
+				case 3:
+					t = (frameV - (2 << 20)) >>> 1;
+					x = (animVWScaled + (t * animVW)) >>> 20;
+					y = (animVMaxY - (Math.sin(t * Math.PI / (1 << 20)) * animVHx2)) | 0;
+					w = animVW;
+					h = animVH;
+					break;
+			
+				case 4:
+					t = (frameV - (4 << 20));
+					w = (animVWScaled + (t * animVW)) >>> 20;
+					h = (animVHScaled - (t * animVHx3_4)) >>> 20;
+					x = animVWx2;
+					y = animVMaxY + (animVH - h);
+					break;
+			
+				case 5:
+				case 6:
+					t = (frameV - (5 << 20)) >>> 1;
+					w = (animVWx2Scaled - (t * animVW)) >>> 20;
+					h = (animVHx1_4Scaled + (t * animVHx3_4)) >>> 20;
+					x = animVWx2;
+					y = animVMaxY + (animVH - h);
+					break;
+			
+				case 7:
+				case 8:
+					t = (frameV - (7 << 20)) >>> 1;
+					x = (animVWx2Scaled - (t * animVW)) >>> 20;
+					y = (animVMaxY - (Math.sin(t * Math.PI / (1 << 20)) * animVHx2)) | 0;
+					w = animVW;
+					h = animVH;
+					break;
+			
+				case 9:
+					t = (frameV - (9 << 20));
+					w = (animVWScaled + (t * animVW)) >>> 20;
+					h = (animVHScaled - (t * animVHx3_4)) >>> 20;
+					x = animVW;
+					y = animVMaxY + (animVH - h);
+					break;
+			}
+			animV.style.left = ((animVW >>> 1) + animVMinX + x - (w >>> 1)) + "px";
+			animV.style.top = (animVMinY + y) + "px";
+			animV.style.width = w + "px";
+			animV.style.height = h + "px";
+
+			window.requestAnimationFrame(drawFrame);
+		}
+		function txtFps_ValueChanged(model, value) {
+			//converte o fps (frames por segundos) em frames por ms
+			fps = (((value << 20) / 1000) | 0);
+			return true;
+		}
+		function chkV_CheckedChanged(model, checked) {
+			Elem.showHide(animV, checked);
+			return true;
+		}
+		function chkB_CheckedChanged(model, checked) {
+			Elem.showHide(animB, checked);
+			return true;
+		}
+		function main() {
+			txtFps = new NumericUpDown(1, 100, 14, false);
+			chkV = new CheckBox(true, "Mostrar animação");
+			chkB = new CheckBox(true, "Mostrar animação");
+			txtFps.replaceControl($("txtFps"), 5.5, 3);
+			Elem.setLabelledBy($("lblTxtFps"), $("txtFps"));
+			chkV.replaceControl($("chkV"));
+			chkB.replaceControl($("chkB"));
+			animV = $("animV");
+			animB = $("animB");
+			txtFps.onValueChanged.attach(txtFps_ValueChanged);
+			chkV.onCheckedChanged.attach(chkV_CheckedChanged);
+			chkB.onCheckedChanged.attach(chkB_CheckedChanged);
+
+			//converte o fps (frames por segundos) em frames por ms
+			fps = (((14 << 20) / 1000) | 0);
+
+			animVMinX = 0;//animV.offsetLeft;
+			animVMinY = 0;//animV.offsetTop;
+			animVW = 60;
+			animVH = animVW;
+			animV.style.width = animVW + "px";
+			animV.style.height = animVH + "px";
+			animVMaxY = $("animVContainer").offsetHeight - animVMinY - (animVH >>> 1) - animVH;
+
+			animVWx2 = animVW << 1;
+			animVWx2Scaled = animVWx2 << 20;
+			animVWScaled = animVW << 20;
+
+			animVHx2 = animVH << 1;
+			animVHx1_4Scaled = animVH >>> 2;
+			animVHx3_4 = animVH - animVHx1_4Scaled;
+			animVHx1_4Scaled <<= 20;
+			animVHScaled = animVH << 20;
+
+			frameV = 0;
+			frameB = 0;
+
+			lastTime = -1;
+			drawFrame(lastTime);
+			Elem.show(animV);
+			window.requestAnimationFrame(drawFrame);
+			return true;
+		}
+		//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0" style="min-width: 550px"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div class="COLHLDR"><div class="COL">
+	<p>A seguir são mostradas duas técnicas de animação. A da esquerda utiliza uma imagem vetorial, e por isso todos os quadros (frames) podem ser calculados conforme necessário, dando um resultado final mais preciso.</p>
+</div><div class="COL2">
+	<p>Já a da direita, utiliza imagens matriciais (bitmaps). Com esse tipo de imagem, todos os possíveis quadros devem ser previamente desenhados, e a única tarefa do programa é escolher qual quadro será exibido na tela. Cada um desses tipos oferece vantagens e desvantagens.</p>
+</div></div>
+<table id="tbComp" style="border-collapse: collapse; margin: 0px auto; max-width: 700px;" class="_MB4">
+	<tr><td class="BRD" style="background: #fff;"></td><td class="BRD _PA4 _VAM" style="background: #fff;"><b>Vantagem</b></td><td class="BRD _PA4 _VAM" style="background: #fff;"><b>Desvantagem</b></td></tr>
+	<tr><td class="BRD _PA4 _VAM" style="background: #fff;"><b>Vetorial</b></td><td class="BRD _PA4 _VAM">Precisão nos quadros gerados, sendo possível obter qualquer quadro desejado em tempo real</td><td class="BRD _PA4 _VAM">Custo computacional elevado, se comparado à animação matricial, devido à quantidade de cálculos necessários</td></tr>
+	<tr><td class="BRD _PA4 _VAM" style="background: #fff;"><b>Matricial</b></td><td class="BRD _PA4 _VAM">Baixo custo computacional</td><td class="BRD _PA4 _VAM">Impossibilidade de se obter qualquer quadro que não esteja previamente desenhado</td></tr>
+</table>
+
+<div class="_TAC">
+<div id="animVContainer" class="INLCTRL _MR4" style="position: relative; width: 240px; height: 264px;">
+	<h2>Vetorial</h2>
+	<div id="animV" class="_HID" style="position: absolute; background-color: #000;"></div>
+	<div style="position: absolute; left: 0px; bottom: 0px; right: 0px;" class="_TAC"><div id="chkV"></div></div>
+</div>
+<div class="INLCTRL" style="position: relative; width: 240px; height: 264px;">
+	<h2>Matricial (Sprites)</h2>
+	<div id="animB" style="position: absolute; width: 225px; height: 170px; background-image: url('/Images/joaninha.png');"></div>
+	<div style="position: absolute; left: 0px; bottom: 0px; right: 0px;" class="_TAC"><div id="chkB"></div></div>
+</div>
+</div>
+<div class="_TAC">
+<div class="LBL _MR4 TXTLBL" id="lblTxtFps">FPS</div><div id="txtFps"></div><br />
+</div>
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

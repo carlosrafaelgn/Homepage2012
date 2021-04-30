@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Minhas Coisas...</title>
+	<link rel="stylesheet" type="text/css" href="/main.css" />
+	<style type="text/css">
+		.LNKMNU {
+			background-color: #fff;
+			margin: 0px auto;
+			max-width: 290px;
+		}
+		.LNKMNU a {
+			text-align: center;
+		}
+		.LNKMNUTITLE {
+			font-weight: bold;
+			margin: 0px;
+		}
+		.LNKMNUSPC {
+			margin-bottom: 1em;
+		}
+		div.COLHLDR {
+			padding: 0px 5%;
+		}
+		ul {
+			list-style-type: none;
+			padding-left: 16px;
+		}
+		li:before {
+			content: "-";
+			position: relative;
+			left: -5px;
+		}
+		li {
+			text-indent: -5px;
+		}
+	</style>
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	function main() {
+		/*var b = document.createElement("script");
+		b.id = "twitter-wjs";
+		b.src = "//platform.twitter.com/widgets.js";
+		document.head.appendChild(b);*/
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="document" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(); //]]></script>
+
+<!--
+<div style="float: right; padding: 0px; width: 200pt; margin-left: 4pt; margin-bottom: 4pt; text-align: center;">
+<a class="twitter-timeline" href="https://twitter.com/carlosrafaelgn" data-widget-id="263676498286874624" style="font-style: italic; font-size: 8pt;"><img alt="Espera" src="/Images/wait.gif" style="width: 10pt; height: 10pt; vertical-align: middle; border: 0px none transparent; margin-right: 2pt;" /> Carregando @carlosrafaelgn...</a>
+</div>
+-->
+
+<!--[if lt IE 9]>
+<h1>As páginas do site não funcionam em um Internet Explorer com versões inferiores à 9 :(</h1>
+<![endif]-->
+<h1>FPlay</h1>
+<div class="COLHLDR" style="min-height: 300px;"><div class="COL">
+<p><img style="float: left;" alt="Eu!" src="/Images/eu.png" width="137" height="300" aria-hidden="true" />FPlay para Android é um player de música com interface limpa, equalizador, ajuste de graves e de cores. E o melhor, é <b>completamente open source</b>! O código está disponível no <a href="https://github.com/carlosrafaelgn/FPlayAndroid">GitHub</a> :D</p>
+<p>O principal objetivo desse projeto é fornecer ao usuário um player completamente funcional, baseado em listas e pastas. O player, por sua vez, <b>não consome muita memória</b> e respeita as diretrizes para cores e contraste do <a href="http://www.w3.org/TR/WCAG20/">WCAG 2.0</a>, sendo amigável a pessoas com daltonismo, alguns tipos de dislexia, bem como com algumas deficiências visuais leves.</p>
+<p><img style="float: right;" alt="FPlay" width="100" height="100" src="/Images/FPlay.png" aria-hidden="true" />O player está sempre em "fase beta", portanto, ainda podem existir alguns pequenos bugs. Por favor, me avise se por acaso você se deparar com um deles ;)</p>
+</div><div class="COL2">
+<p>Outras funcionalidades do player:</p>
+<ul><li>Personalização de cores e de temas</li>
+<li>Suporte nativo de fonte amigável para dislexia (melhor legibilidade)</li>
+<li>Envio de informação da música atual via A2DP / AVRCP Bluetooth (testado em Android 4.0+)</li>
+<li>Reprodução de streams da Internet</li>
+<li>Fade in de volume depois de retornar de chamadas e do pause</li>
+<li>Analisador de espectro em tempo real</li>
+<li>Totalmente controlável através do teclado</li>
+<li>Controlável via dispositivos de áudio Bluetooth (testado em Android 4.0+)</li>
+<li>Baixa latência nas mudanças entre músicas consecutivas em Android 4.1+</li>
+<li>Controle total através da área de notificação em Android 4.1+</li>
+<li>Desligamento programável por timer</li>
+<li>Suporte à tecnologia assistiva TalkBack</li>
+<li>Virtualização de áudio</li>
+<li>Acesso a dispositivos USB externos</li></ul>
+<p class="_TAC"><a href="https://play.google.com/store/apps/details?id=br.com.carlosrafaelgn.fplay"><img alt="Disponível no Google Play" src="/Images/GooglePlay.png" width="200" height="60" /></a></p></div></div>
+
+<h1>Equalizador Gráfico</h1>
+<div class="COLHLDR"><div class="COL">
+<p>Sempre fui fanático por sons, áudio e aqueles "ledzinhos que pulam" conforme a música, desde bem pequeno...</p>
+<p><img style="float: left; margin: 0px 4px 4px 0px;" alt="Equalizador" width="100" height="56" src="/Images/eq.png" aria-hidden="true" />Pouco tempo depois de ter entrado nessa vida de programação, quando já me sentia confortável com threads e C++, resolvi começar a programar coisas relacionadas a áudio. Minhas primeiras brincadeiras foram com a (agora esquecida por muitos) Windows Media Control Interface API, ou Win32 MCI API. Em seguida migrei para Waveform Audio API (aquelas waveInXXX, waveOutXXX), depois DirectSound, e agora XAudio.</p>
+<p>Enquanto trabalhava com DirectSound, criei um equalizador gráfico em C++, onde era possível desenhar a resposta em frequência, em vez de apenas arrastar uns poucos botões, um para cada frequência.</p>
+</div><div class="COL2">
+<p><img style="float: right; margin: 0px 0px 4px 4px;" alt="Analizador Gráfico" width="100" height="100" src="/Images/analyzer.png" aria-hidden="true" />Como eu vi que já existia um plugin externo para o Winamp que já fazia isso, transformei esse equalizador em um pequeno player, que aliás, uso até hoje :)</p>
+<p>Mas... O mundo não para... O que ontem era lento e desprezado por alguns, hoje começa a se tornar um padrão, e dos bem poderosos! Com toda essa história de HTML5, JavaScript melhorado e Web API's, resolvi fazer um teste, e converter o equalizador de C++ para JavaScript, coisa que soaria bem estranho há alguns anos!!! O resultado deu bem certo! Tanto que foi parar na <a href="http://chromium.googlecode.com/svn/trunk/samples/audio/samples.html">galeria de exemplos de Web Audio API</a>! :D</p>
+<p>Disponibilizei o projeto inteiro no <a href="http://github.com/carlosrafaelgn/GraphicalFilterEditor">GitHub</a> e deixei ele aqui na minha página para o pessoal ir testando. Tem só um <b>requisito</b>: utilize um browser com suporte para a <a href="http://www.w3.org/TR/webaudio/">Web Audio API</a>.</p><div class="BRD LNKMNU _PA4"><a class="LNK MNULNK" href="https://carlosrafaelgn.github.io/GraphicalFilterEditor/">Equalizador Gráfico</a></div></div></div>
+
+<h1>InteropMIX</h1>
+<div class="COLHLDR"><div class="COL"><p>Aqui você encontra o resumo (versão em baixa resolução) da minha apresentação do InteropMIX 2014: <b>"C++ ao resgate! Acelerando apps Android com instruções SIMD"</b>.</p>
+<p>Resumo da palestra: Introdução sobre os conceitos de SIMD. Conjunto de instruções NEON da arquitetura ARM. Exemplos de como utilizar instruções NEON, em um breve tutorial. Case final: como o SIMD ajudou a melhorar o desempenho de uma aplicação real na Play Store, o FPlay.</p></div><div class="COL2">
+<div class="BRD LNKMNU _PA4">
+	<div class="LBL MNULNK LNKMNUTITLE">Arquivos da palestra</div>
+	<div class="SEPMNU"></div>
+	<a class="LNK MNULNK _MT2" href="/Files/Apresentacao.pdf">Apresentação em PDF</a>
+	<a class="LNK MNULNK _MT2" href="/Files/Neon.zip">Projeto do Android Studio</a>
+</div></div></div>
+
+<h1>Arquitetura Computacional</h1>
+<div class="COLHLDR"><div class="COL"><p>Esses são alguns dos programas utilizados como auxílio ao material da disciplina de Arquitetura Computacional.</p>
+<div class="BRD LNKMNU _PA4">
+	<div class="LBL MNULNK LNKMNUTITLE">Programas auxiliares</div>
+	<div class="SEPMNU"></div>
+	<a class="LNK MNULNK _MT2" href="/Aula/Binario.html">Números Binários Negativos</a>
+	<a class="LNK MNULNK _MT2" href="/Aula/Flutuante.html">Ponto Flutuante IEEE 754</a>
+</div></div><div class="COL2">
+<p>Tem também o compilador e emulador de Assembly Intel x86. Com ele é possível criar, editar, compilar, executar e depurar programas utilizando um subconjunto das operações disponíveis nos processadores Intel x86 da atualidade.</p>
+<div class="BRD LNKMNU LNKMNUSPC _PA4"><a class="LNK MNULNK" href="https://carlosrafaelgn.github.io/Asm86/">Emulador Assembly x86</a></div>
+<p>Caso você possua um computador mais lento, ou esteja acessando através de um tablet, pode ser que o editor de código funcional utilizado na versão acima deixe o aplicativo lento... Por isso, existe a versão abaixo <b>sem o editor de código funcional</b>.</p>
+<div class="BRD LNKMNU _PA4"><a class="LNK MNULNK" href="https://carlosrafaelgn.github.io/Asm86/?noeditor=true">Emulador Assembly x86 <span class="NOTE">(sem editor)</span></a></div></div>
+</div>
+
+<h1>Programação Web</h1>
+<div class="COLHLDR"><div class="COL"><p>Esses são alguns dos programas utilizados como auxílio ao material da disciplina de Programação Web. Calma, que os dois primeiros serão utilizados só nas duas primeiras aula... Depois a conversa é outra! ;)</p>
+<div class="BRD LNKMNU LNKMNUSPC _PA4">
+	<div class="LBL MNULNK LNKMNUTITLE">Programas auxiliares</div>
+	<div class="SEPMNU"></div>
+	<a class="LNK MNULNK _MT2" href="/Aula/Cores.html">Cores e Acessibilidade</a>
+	<a class="LNK MNULNK _MT2" href="/Aula/Codificacao.html">Codificação</a>
+	<a class="LNK MNULNK _MT2" href="/Aula/Cadastro.html">Exemplo de Tela de Cadastro</a>
+</div>
+
+<p>Ficou perdido? Não lembra onde procurar ajuda?</p>
+<div class="BRD LNKMNU LNKMNUSPC _PA4"><a class="LNK MNULNK" href="/Aula/WebRef.html">Referências sobre Web</a></div>
+
+<p>Há ainda outros programas de exemplo, que trabalham bastante com DOM e JavaScript.</p>
+
+<div class="BRD LNKMNU LNKMNUSPC _PA4">
+	<div class="LBL MNULNK LNKMNUTITLE">Exemplos extras</div>
+	<div class="SEPMNU"></div>
+	<a class="LNK MNULNK _MT2" href="/Aula/Localizacao.html">Localização Geográfica</a>
+	<a class="LNK MNULNK _MT2" href="/Aula/Preview.html">Preview de Conteúdo</a>
+	<a class="LNK MNULNK _MT2" href="/Aula/Mic.html">Microfone</a>
+	<a class="LNK MNULNK _MT2" href="/Aula/Camera.html">Câmera</a>
+</div></div><div class="COL2">
+
+<p>Além do material das aulas convencionais, você também pode dar uma olhada nesse material especial sobre WebGL e conceitos gerais de computação gráfica, sprites e animação. Não temos tempo de ver isso em sala de aula, mas se alguém gostar, se interessar ou tiver alguma dúvida, pode vir falar comigo!</p>
+<div class="BRD LNKMNU _PA4">
+	<div class="LBL MNULNK LNKMNUTITLE">WebGL, Sprites e Animação</div>
+	<div class="SEPMNU"></div>
+	<a class="LNK MNULNK _MT2" href="/WebGL/Matrix.html">Matrizes e Transformações Lineares</a>
+	<a class="LNK MNULNK _MT2" href="/WebGL/Normals.html">Normais e Iluminação</a>
+	<a class="LNK MNULNK _MT2" href="/Aula/TipoAnim.html">Tipos de Animação</a>
+	<a class="LNK MNULNK _MT2" href="/Aula/SpriteAnim.html">Animador de Sprites</a>
+	<a class="LNK MNULNK _MT2" href="/Aula/SpriteControl.html">Controle de Sprites</a>
+</div></div></div>
+
+<h1>Filósofos que Jantam</h1>
+<div class="COLHLDR"><div class="COL">
+<p>Este é o exemplo funcional com a resolução para o problema dos filósofos que jantam, utilizando a solução por grafos de precedência, em JavaScript.</p>
+<div class="BRD LNKMNU _PA4">
+	<div class="LBL MNULNK LNKMNUTITLE">Programas auxiliares</div>
+	<div class="SEPMNU"></div>
+	<a class="LNK MNULNK _MT2" href="/Aula/Filosofos.html">Problema dos Filósofos</a>
+	<a class="LNK MNULNK _MT2" href="/Aula/FilosofosNA.html">Problema dos Filósofos <span class="NOTE">(sem animação)</span></a>
+</div></div></div>
+
+<h1>Scratch e Ferramentas</h1>
+<div class="COLHLDR"><div class="COL"><p>Quando comecei com as aulas de lógica e algoritmos na faculdade, foi proposto utilizar uma ferramenta para auxiliar o aprendizado daqueles que ainda estão dando seus primeiros passos nesse mundo da programação, o <a href="http://scratch.mit.edu">Scratch</a>.</p><div class="BRD LNKMNU _PA4"><a class="LNK MNULNK" href="/Scratch/">Scratch e Ferramentas</a></div></div><div class="COL2">
+<p>O Scratch oferece um ambiente inteiramente gráfico e bem amigável, o que sempre leva os alunos a querer desenvolver jogos. Apesar de todas as funcionalidades oferecidas pela versão atual, 1.4, ainda falta uma <b>integração com joysticks</b>. Por isso criei um pequeno emulador para converter comandos de joystick em teclas de teclado convencional, e outras coisinhas.</p></div></div>
+
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script></body>
+</html>

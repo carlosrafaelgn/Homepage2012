@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Microfone</title>
+	<link rel="stylesheet" type="text/css" href="/main.css" />
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+		//<![CDATA[
+		"use strict";
+
+		//Uma prática muito comum: verifica se o objeto desejado existe,
+		//caso contrário, "cria" o objeto atribuindo a ele outro(s) que
+		//pode(m) existir naquele browser em especial...
+		if (!navigator.getUserMedia) {
+			navigator.getUserMedia = (navigator.webkitGetUserMedia ||
+				navigator.mozGetUserMedia ||
+				navigator.msGetUserMedia);
+		}
+		if (!window.requestAnimationFrame) {
+			window.requestAnimationFrame = (window.webkitRequestAnimationFrame ||
+				window.mozRequestAnimationFrame ||
+				window.oRequestAnimationFrame ||
+				window.msRequestAnimationFrame ||
+				function (callback, element) { return setTimeout(callback, 1000 / 60); });
+		}
+
+		var audioContext, analyzer, microphoneStream, data, bg, bgContext;
+
+		function drawFrame() {
+			//*** Todos os "- 0.5" que aparecem aqui tem uma explicação...
+			//http://stackoverflow.com/questions/195262/can-i-turn-off-antialiasing-on-an-html-canvas-element
+			//"Draw your 1-pixel lines on coordinates like ctx.lineTo(10.5, 10.5). Drawing a one-pixel line
+			//over the point (10, 10) means, that this 1 pixel at that position reaches from 9.5 to 10.5 which
+			//results in two lines that get drawn on the canvas.
+
+			var i;
+			//Obtém 512 samples do áudio do microfone
+			//Os números retornados pela função getByteTimeDomainData, por
+			//serem bytes, vão de 0 à 255
+			analyzer.getByteTimeDomainData(data);
+
+			//Limpa o fundo do canvas (faz com que ele fique transparente)
+			bgContext.clearRect(0, 0, 512, 256);
+
+			//Inicia uma novo traçado "imaginário" vazio
+			bgContext.beginPath();
+			//Posiciona o cursor de desenho na coordenada X = 0, Y = valor do dado 0
+			bgContext.moveTo(0 - 0.5, data[0] - 0.5);
+			for (i = 1; i < 512; i++)
+				//Traça uma linha "imagniária" até o próximo ponto, já movendo o cursor para esse novo ponto
+				bgContext.lineTo(i - 0.5, data[i] - 0.5);
+			//Efetivamente desenha na tela as linhas "imaginárias" traçadas
+			bgContext.stroke();
+
+			//Pede para o browser chamar a função drawFrame de novo, daqui ~ 1/60 segundos
+			requestAnimationFrame(drawFrame, bg);
+			return true;
+		}
+
+		function getUserMedia_Success(mediaStream) {
+			microphoneStream = audioContext.createMediaStreamSource(mediaStream);
+			//Conecta o canal 0 do microfone ao canal 0 do analizador
+			//0 = Esquerda
+			//1 = Direita
+			//O analizador sempre possui apenas o canal 0
+			//O microfone, no entanto, pode possuir o canal 1, caso seja estéreo
+			microphoneStream.connect(analyzer, 0, 0);
+			//analyzer.connect(audioContext.destination);
+			drawFrame();
+			return true;
+		}
+
+		function getUserMedia_Error(error) {
+			Popup.showError("Erro ao obter acesso ao microfone: " + error);
+			return true;
+		}
+
+		function start() {
+			var divStart = document.getElementById("divStart");
+			divStart.parentNode.removeChild(divStart);
+			if (!navigator.getUserMedia) {
+				Popup.showError("Aparentemente seu browser não possui a API necessária para acessar o microfone! :(");
+			} else {
+				audioContext = (window.AudioContext ? new AudioContext() : (window.webkitAudioContext ? new webkitAudioContext() : null));
+				if (!audioContext) {
+					Popup.showError("Aparentemente seu browser não possui a API necessária para trabalhar com áudio! :(");
+				} else {
+					//Obtém o canvas da página
+					bg = document.getElementById("bg");
+					//Obtém o contexto de desenho do canvas
+					bgContext = bg.getContext("2d");
+					//Configura o estilo do desenho das linhas do canvas
+					bgContext.lineWidth = 1;
+					bgContext.strokeStyle = "#092dba";
+					//Cria o analizador do áudio (é através dele que teremos acesso aos dados do áudio)
+					analyzer = audioContext.createAnalyser();
+					analyzer.fftSize = 512;
+					//Cria um array de bytes para poder obter os dados do microfone
+					data = new Uint8Array(512);
+					//Tenta obter acesso ao microfone
+					navigator.getUserMedia({ audio: true }, getUserMedia_Success, getUserMedia_Error);
+				}
+			}
+			return true;
+		}
+		
+		function main() {
+		}
+		//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+	<p>Esse é um exemplo bem simples de como acessar o áudio do microfone, e criar um analizador para exibir a onda correspondente ao som sendo capturado.</p>
+	<p>Se a linha não se mover, tente alterar o microfone sendo capturado pelo browser.</p>
+	<p>Dê uma olhada no código fonte desta página para um exemplo completo de como tudo funciona.</p>
+	<div id="divStart"><div class="BTN _MB4" tabindex="0" role="button" onclick="start()">Iniciar!</div></div>
+	<canvas id="bg" width="512" height="256"></canvas>
+	<div class="SEP"></div>
+	<p>Para mais informações sobre as tecnologias utilizadas:</p>
+	<ul>
+		<li>W3C - <a href="http://dev.w3.org/2011/webrtc/editor/getusermedia.html">Media Capture and Streams</a></li>
+		<li>MDN - <a href="https://developer.mozilla.org/en-US/docs/Web/API/Navigator.getUserMedia">Navigator.getUserMedia</a></li>
+	</ul>
+	<p class="NOTE">Esse exemplo não funciona no Internet Explorer 6, 7, 8, 9, 10 e 11 :(</p>
+	<p class="NOTE">Para testar a página em versões mais antigas do Firefox, talvez seja necessário habilitar a funcionalidade através do link about:config (atributo media.navigator.enabled)</p>
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

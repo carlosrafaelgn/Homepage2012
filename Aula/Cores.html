@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head data-nores="1">
+	<meta charset="utf-8" />
+	<script type="text/javascript">//<![CDATA[
+		"use strict"; (function () { var vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); vp.setAttribute("content", ((screen.availWidth >= 614) || (screen.availHeight >= 614)) ? "width=device-width, initial-scale=1" : "width=614"); document.head.appendChild(vp); })(); //]]>
+	</script>
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Cores e Acessibilidade</title>
+	<link rel="stylesheet" type="text/css" href="/mainnr.css" />
+	<style type="text/css">
+		.SAMPL
+		{
+			line-height: 34px;
+			font-size: 28px;
+			font-weight: bold;
+		}
+		.SAMPV, .SAMP, .SAMPL
+		{
+			height: 42px;
+			margin: 0px 0px 4px 0px;
+			background-color: #fff;
+			color: #000;
+		}
+		.SAMPV, .SAMP
+		{
+			line-height: 40px;
+		}
+		.SAMP, .SAMPL
+		{
+			width: 300px;
+		}
+		.SAMPV
+		{
+			width: 2em;
+			margin-right: 4px;
+			background-color: #0f0;
+			font-weight: bold;
+		}
+	</style>
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript" charset="utf-8" src="/color.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	var cbDisease, cbDisease2, cbDisease3, colorChooser, lastSampClicked, normalData, normalImg, distortedData, distortedImg, tab,
+	fileImg, fileData,
+	matrices = [
+		//PROTANOPIA: 0 - no red
+		[
+			[0.202001295331, 0.991720719265, -0.193722014597],
+			[0.163800203026, 0.792663865514, 0.0435359314602],
+			[0.00913336570448, -0.0132684300993, 1.00413506439]
+		],
+		//DEUTERANOPIA: 1 - no green
+		[
+			[0.430749076295, 0.717402505462, -0.148151581757],
+			[0.336582831043, 0.574447762213, 0.0889694067435],
+			[-0.0236572929497, 0.0275635332006, 0.996093759749]
+		],
+		//TRITANOPIA: 2 - no blue
+		[
+			[0.971710712275, 0.112392320487, -0.0841030327623],
+			[0.0219508442818, 0.817739672383, 0.160309483335],
+			[-0.0628595877201, 0.880724870686, 0.182134717034]
+		]
+	];
+	function generateSpectrum(imageData, width, height) {
+		var buffer = imageData.data,
+		hsv = { h: 0, s: 0, v: 1 },
+		h2 = (height >>> 1),
+		h2m1 = h2 - 1,
+		hm1 = height - 1,
+		wm1 = width - 1,
+		c = 0, i = 0, x, y;
+		for (y = 0; y < h2; y++) {
+			hsv.s = y / h2m1;
+			for (x = 0; x < width; x++) {
+				hsv.h = x / wm1;
+				c = ColorUtils.hsvToRGB(hsv);
+				buffer[i] = c & 0xFF;
+				buffer[i + 1] = (c >>> 8) & 0xFF;
+				buffer[i + 2] = (c >>> 16) & 0xFF;
+				buffer[i + 3] = 255;
+				i += 4;
+			}
+		}
+		hsv.s = 1;
+		for (y = h2; y < height; y++) {
+			hsv.v = (hm1 - y) / h2m1;
+			for (x = 0; x < width; x++) {
+				hsv.h = x / wm1;
+				c = ColorUtils.hsvToRGB(hsv);
+				buffer[i] = c & 0xFF;
+				buffer[i + 1] = (c >>> 8) & 0xFF;
+				buffer[i + 2] = (c >>> 16) & 0xFF;
+				buffer[i + 3] = 255;
+				i += 4;
+			}
+		}
+		return buffer;
+	}
+	function transformColor(colorIn, disease) {
+		if (!disease) return colorIn;
+		var mat = matrices[disease - 1],
+		r = ((colorIn >>> 16) & 0xFF),
+		g = ((colorIn >>> 8) & 0xFF),
+		b = (colorIn & 0xFF),
+		rout = (mat[0][0] * r) + (mat[0][1] * g) + (mat[0][2] * b) + 0.25,
+		gout = (mat[1][0] * r) + (mat[1][1] * g) + (mat[1][2] * b) + 0.25,
+		color = 0;
+		b = (mat[2][0] * r) + (mat[2][1] * g) + (mat[2][2] * b) + 0.25;
+		if (rout >= 255) color |= (0xFF << 16);
+		else if (rout > 0) color |= ((rout | 0) << 16);
+		if (gout >= 255) color |= (0xFF << 8);
+		else if (gout > 0) color |= ((gout | 0) << 8);
+		if (b >= 255) color |= 0xFF;
+		else if (b > 0) color |= (b | 0);
+		return color;
+	}
+	function transformColors(imageDataInSt, imageDataOutSt, disease) {
+		var m, m00, m01, m02, m10, m11, m12, m20, m21, m22,
+			i = ((imageDataInSt.width * imageDataInSt.height) << 2) - 4, r, g, b, rout, gout,
+			imageDataIn = imageDataInSt.data,
+			imageDataOut = imageDataOutSt.data;
+		if (!disease) {
+			for (; i >= 0; i -= 4) {
+				imageDataOut[i] = imageDataIn[i];
+				imageDataOut[i + 1] = imageDataIn[i + 1];
+				imageDataOut[i + 2] = imageDataIn[i + 2];
+				imageDataOut[i + 3] = imageDataIn[i + 3];
+			}
+		} else {
+			m = matrices[disease - 1];
+			m00 = m[0][0];
+			m01 = m[0][1];
+			m02 = m[0][2];
+			m10 = m[1][0];
+			m11 = m[1][1];
+			m12 = m[1][2];
+			m20 = m[2][0];
+			m21 = m[2][1];
+			m22 = m[2][2];
+			for (; i >= 0; i -= 4) {
+				r = imageDataIn[i];
+				g = imageDataIn[i + 1];
+				b = imageDataIn[i + 2];
+				imageDataOut[i + 3] = imageDataIn[i + 3];
+				rout = (m00 * r) + (m01 * g) + (m02 * b) + 0.25;
+				gout = (m10 * r) + (m11 * g) + (m12 * b) + 0.25;
+				b = (m20 * r) + (m21 * g) + (m22 * b) + 0.25;
+				if (rout <= 0) imageDataOut[i] = 0;
+				else if (rout >= 255) imageDataOut[i] = 255;
+				else imageDataOut[i] = (rout | 0);
+				if (gout <= 0) imageDataOut[i + 1] = 0;
+				else if (gout >= 255) imageDataOut[i + 1] = 255;
+				else imageDataOut[i + 1] = (gout | 0);
+				if (b <= 0) imageDataOut[i + 2] = 0;
+				else if (b >= 255) imageDataOut[i + 2] = 255;
+				else imageDataOut[i + 2] = (b | 0);
+			}
+		}
+		return true;
+	}
+	function formatTxtV(txt, approved) {
+		if (approved) {
+			txt.style.backgroundColor = "";
+			txt.innerHTML = "";
+		} else {
+			txt.style.backgroundColor = "#ff0000";
+			txt.innerHTML = "X";
+		}
+		return approved;
+	}
+	function refreshSamples() {
+		var ct = transformColor($("txtColorT").color, cbDisease.getSelectedIndex()),
+		cb = transformColor($("txtColorB").color, cbDisease.getSelectedIndex()),
+		c = "#" + ColorUtils.hexColor(ct);
+		$("txtSampleSAA").style.color = c;
+		$("txtSampleSAAA").style.color = c;
+		$("txtSampleLAA").style.color = c;
+		$("txtSampleLAAA").style.color = c;
+		c = "#" + ColorUtils.hexColor(cb);
+		$("txtSampleSAA").style.backgroundColor = c;
+		$("txtSampleSAAA").style.backgroundColor = c;
+		$("txtSampleLAA").style.backgroundColor = c;
+		$("txtSampleLAAA").style.backgroundColor = c;
+		c = ColorUtils.contrastRatio(ct, cb);
+		$("lblContrast").innerHTML = c.toFixed(2) + ":1";
+		formatTxtV($("txtSampleSAAV"), c >= 4.495); //4.5);
+		formatTxtV($("txtSampleSAAAV"), c >= 6.995); //7);
+		formatTxtV($("txtSampleLAAV"), c >= 2.995); //3);
+		formatTxtV($("txtSampleLAAAV"), c >= 4.495); //4.5);
+		return true;
+	}
+	function txtColor_KeyHandler(e) {
+		var k = e.keyCode;
+		switch (k) {
+			case 8: //backspace
+			case 9: //tab
+			case 13: //return
+			case 16: //shift
+			case 46: //delete
+			case 35: //end
+			case 36: //home
+			case 37: //left
+			case 39: //right
+			case 38: //up
+			case 40: //down
+				return true;
+		}
+		if (e.ctrlKey)
+			return true;
+		if (k >= 96 && k <= 105) //convert numpad to normal
+			k -= 48;
+		if (k >= 48 && k <= 57)
+			return true;
+		if ((k >= 0x41 && k <= 0x46) || (k >= 0x61 && k <= 0x66))
+			return true;
+		return cancelEvent(e);
+	}
+	function changeTxtColor(txt, color, setText) {
+		txt.other.innerHTML = "";
+		if (color !== txt.color) {
+			txt.color = color;
+			txt.strColor = ColorUtils.hexColor(color);
+			txt.other.style.color = "#" + ColorUtils.hexColor(ColorUtils.bwForRGB(color));
+			txt.other.style.backgroundColor = "#" + txt.strColor;
+			if (setText)
+				txt.value = txt.strColor;
+			return refreshSamples();
+		}
+		return false;
+	}
+	function txtColor_KeyUp() {
+		var v = this.value, c = -1;
+		if (v.length === 7 && v.charAt(0) === "#") {
+			try {
+				c = parseInt(v.substr(1, 6), 16);
+			} catch (ex) { }
+		} else if (v.length === 6) {
+			try {
+				c = parseInt(v, 16);
+			} catch (ex) { }
+		}
+		if (isNaN(c) || c < 0) {
+			this.other.innerHTML = "Erro!";
+		} else {
+			changeTxtColor(this, c, false);
+		}
+		return true;
+	}
+	function txtSample_MouseDown(e) {
+		if (colorChooser.isVisible()) {
+			colorChooser.hide();
+		} else {
+			lastSampClicked = this;
+			colorChooser.setColor(this.other.color);
+			colorChooser.show(this);
+		}
+		return (_isTouch ? true : cancelEvent(e));
+	}
+	function colorChooser_ColorChanged(model, color) {
+		return changeTxtColor((lastSampClicked === $("txtSampleT")) ? $("txtColorT") : $("txtColorB"), color, true);
+	}
+	function refreshSpectrum() {
+		if (!normalData)
+			return false;
+		transformColors(normalData, distortedData, cbDisease2.getSelectedIndex() + 1);
+		distortedImg.putImageData(distortedData, 0, 0);
+		return true;
+	}
+	function showNotSupported() {
+		Popup.showError("Aparentemente seu browser não possui a API necessária para acessar arquivos locais! :(");
+		return true;
+	}
+	function btnFile_Click() {
+		$("txtFile").click();
+		return true;
+	}
+	function refreshFile() {
+		var f = $("txtFile").files, reader;
+		if (!f) //if (!window.File || !window.FileReader)
+			return showNotSupported();
+		if (!f.length)
+			return true;
+		f = f[0];
+		$("btnFile").innerHTML = f.name + " (...)";
+		if (!f.type.match("image/*")) {
+			Popup.showError("Por favor, selecione uma imagem válida!");
+			return true;
+		}
+		reader = new FileReader();
+		attachObserver(reader, "error", function (err) {
+			Popup.showError("Ocorreu um erro ao tentar acessar o arquivo " + f.name + "!<br /><br />Isso pode ter ocorrido devido a permissões do browser. Possíveis correções são:<br />- Acessar essa página através de um servidor web, em vez de acessar o arquivo localmente<br />- Se você estiver utilizando o Chrome, execute o browser com a opção --allow-file-access-from-files<br />- Utilize outros browsers, como Firefox ou Opera");
+			return true;
+		});
+		attachObserver(reader, "load", function () {
+			var img = new Image();
+			attachObserver(img, "load", function () {
+				fileImg.width = img.width;
+				fileImg.height = img.height;
+				var c = fileImg.getContext("2d");
+				c.drawImage(img, 0, 0);
+				fileData = c.getImageData(0, 0, fileImg.width, fileImg.height);
+				transformColors(fileData, fileData, cbDisease3.getSelectedIndex());
+				c.putImageData(fileData, 0, 0);
+				return true;
+			});
+			attachObserver(img, "error", function () {
+				Popup.showError("Erro ao carregar a imagem " + f.name + "!");
+				return true;
+			});
+			img.src = reader.result;
+			return true;
+		});
+		reader.readAsDataURL(f);
+		return true;
+	}
+	function main() {
+		tab = new TabHeader("Avaliação de Contraste", $("tab1"), "Disfunções Visuais", $("tab2"), "Verificação de Imagens", $("tab3"));
+		tab.replaceControl($("tab"));
+
+		cbDisease = new ListBox();
+		cbDisease2 = new ListBox();
+		cbDisease3 = new ListBox();
+		cbDisease.addLast("Nenhuma");
+		cbDisease.addLast("Protanopia");
+		cbDisease.addLast("Deuteranopia");
+		cbDisease.addLast("Tritanopia");
+		cbDisease2.addLast("Protanopia");
+		cbDisease2.addLast("Deuteranopia");
+		cbDisease2.addLast("Tritanopia");
+		cbDisease3.addLast("Nenhuma");
+		cbDisease3.addLast("Protanopia");
+		cbDisease3.addLast("Deuteranopia");
+		cbDisease3.addLast("Tritanopia");
+		cbDisease.setSelectedIndex(0);
+		cbDisease2.setSelectedIndex(0);
+		cbDisease3.setSelectedIndex(0);
+		cbDisease.replaceComboControl($("cbDisease"), 11);
+		cbDisease2.replaceComboControl($("cbDisease2"), 11);
+		cbDisease3.replaceComboControl($("cbDisease3"), 11);
+		cbDisease.onSelectedIndexChanged.attach(refreshSamples);
+		cbDisease2.onSelectedIndexChanged.attach(refreshSpectrum);
+		cbDisease3.onSelectedIndexChanged.attach(refreshFile);
+
+		attachRepeatableKey($("txtColorT"), txtColor_KeyHandler);
+		attachRepeatableKey($("txtColorB"), txtColor_KeyHandler);
+		attachObserver($("txtColorT"), "keyup", txtColor_KeyUp);
+		attachObserver($("txtColorB"), "keyup", txtColor_KeyUp);
+		$("txtColorT").other = $("txtSampleT");
+		$("txtColorB").other = $("txtSampleB");
+		$("txtSampleT").other = $("txtColorT");
+		$("txtSampleB").other = $("txtColorB");
+		$("txtColorT").color = 0x000000;
+		$("txtColorB").color = 0xFFFFFF;
+		$("txtColorT").strColor = "000000";
+		$("txtColorB").strColor = "ffffff";
+		attachMouse($("txtSampleT"), "mousedown", txtSample_MouseDown);
+		attachMouse($("txtSampleB"), "mousedown", txtSample_MouseDown);
+		$("txtSampleT").style.color = "#ffffff";
+		$("txtSampleB").style.color = "#000000";
+		attachMouse($("btnFile"), "click", btnFile_Click);
+		attachObserver($("txtFile"), "change", refreshFile);
+		fileImg = $("fileImg");
+
+		Elem.setLabelledBy($("lblDisease"), $("cbDisease"));
+		Elem.setLabelledBy($("lblDisease2"), $("cbDisease2"));
+		Elem.setLabelledBy($("lblDisease3"), $("cbDisease3"));
+		Elem.setLabelledBy($("lblFile"), $("btnFile"));
+
+		colorChooser = new ColorChooser();
+		colorChooser.onColorChanged.attach(colorChooser_ColorChanged);
+
+		try {
+			//test HTML5 canvas
+			var c = document.createElement("canvas");
+			c.width = 1;
+			c.height = 1;
+			c = c.getContext("2d");
+			c = undefined;
+			//now create the real canvas...
+			normalImg = Elem.replace("canvas", $("normalImg"));
+			normalImg.width = 256;
+			normalImg.height = 128;
+			normalImg = normalImg.getContext("2d");
+			normalData = normalImg.createImageData(256, 128);
+			distortedImg = Elem.replace("canvas", $("distortedImg"));
+			distortedImg.width = 256;
+			distortedImg.height = 128;
+			distortedImg = distortedImg.getContext("2d");
+			distortedData = distortedImg.createImageData(256, 128);
+			generateSpectrum(normalData, 256, 128);
+			normalImg.putImageData(normalData, 0, 0);
+			refreshSpectrum();
+		} catch (ex) {
+			Popup.showError("Não foi possível gerar o espectro de cores. As funcionalidades serão limitadas...<br/>Erro: " + ex);
+			normalImg = null;
+			normalData = null;
+			distortedImg = null;
+			distortedData = null;
+		}
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div id="tab"></div>
+<div id="tab1" class="TP">
+<div class="INLCTRL">
+	<table>
+		<tr>
+			<td><div class="LBL _MB4 TXTLBL" id="lblText">Cor do texto</div></td>
+			<td><input class="_TAC MONO _ML4 _MR4" id="txtColorT" type="text" size="6" maxlength="7" value="000000" spellcheck="false" aria-labelledby="lblText" /></td>
+			<td><div class="TINP _TAC" id="txtSampleT" style="width: 5em; background-color: #000000; cursor: pointer;"></div></td>
+		</tr>
+		<tr>
+			<td><div class="LBL TXTLBL" id="lblBg">Cor do fundo</div></td>
+			<td><input class="_TAC MONO _ML4 _MR4" id="txtColorB" type="text" size="6" maxlength="7" value="ffffff" spellcheck="false" aria-labelledby="lblBg" /></td>
+			<td><div class="TINP _TAC" id="txtSampleB" style="width: 5em; background-color: #ffffff; cursor: pointer;"></div></td>
+		</tr>
+	</table>
+</div><div class="_ML4 INLCTRL">
+	<div class="_MB4"><div class="LBL TXTLBL" style="width: 13em;">Contraste calculado</div><div id="lblContrast" class="LBL HL">21.00:1</div></div>
+	<div id="lblDisease" class="LBL TXTLBL" style="width: 13em;">Simular disfunção visual</div><div id="cbDisease"></div>
+</div>
+<table><tr>
+	<td style="white-space: nowrap;">
+		<h2 class="_TAC">Exemplos</h2>
+		<div id="txtSampleSAAV" class="TINP SAMPV _TAC"></div><div id="txtSampleSAA" class="TINP SAMP">Texto&nbsp;Normal&nbsp;-&nbsp;AA</div><br />
+		<div id="txtSampleSAAAV" class="TINP SAMPV _TAC"></div><div id="txtSampleSAAA" class="TINP SAMP">Texto&nbsp;Normal&nbsp;-&nbsp;AAA</div><br />
+		<div id="txtSampleLAAV" class="TINP SAMPV _TAC"></div><div id="txtSampleLAA" class="TINP SAMPL">Texto&nbsp;Largo&nbsp;-&nbsp;AA</div><br />
+		<div id="txtSampleLAAAV" class="TINP SAMPV _TAC"></div><div id="txtSampleLAAA" class="TINP SAMPL">Texto&nbsp;Largo&nbsp;-&nbsp;AAA</div><br />
+	</td>
+	<td style="padding-left: 4px;">
+		<h2 class="_TAC">Explicação</h2>
+		A World Wide Web Consortium (W3C) criou o WCAG (Web Content Accessibility Guidelines),
+		que estabelece regras e boas práticas para desenvolvedores Web criar páginas e conteúdos
+		acessíveis a todo tipo de pessoas, e de todas as idades.<br />
+		<br />
+		Entre as boas práticas definidas, está o ajuste das cores do fundo e do texto das
+		páginas para facilitar a leitura das páginas (práticas G17 e G18).<br />
+		<br />
+		Para ser aprovado no nível <strong>AA</strong>, o texto deve ter um contraste mínimo
+		com o fundo de <strong>4.5:1</strong> para fontes <strong>normais</strong> (&lt; 18pt ou &lt; 14pt negrito), e <strong>
+		3:1</strong> para fontes <strong>largas</strong> (&gt; 18pt ou &gt; 14pt negrito).<br />
+		<br />
+		Para ser aprovado no nível <strong>AAA</strong>, o texto deve ter um contraste mínimo
+		com o fundo de <strong>7:1</strong> para fontes <strong>normais</strong>, e <strong>
+		4.5:1</strong> para fontes <strong>largas</strong>.<br />
+		<br />
+		O cálculo do contraste é baseado na fórmula fornecida pela W3C, extraída da técnica
+		G18 da WCAG 2.0, disponível <a href="http://www.w3.org/TR/2012/NOTE-WCAG20-TECHS-20120103/G18">aqui</a>.<br />
+		<br />
+		Para mais informações e ferramentas sobre acessibilidade, ver:<br />
+		<a href="http://www.w3.org/TR/WCAG20/">WCAG 2.0</a><br />
+		<a href="http://www.w3.org/TR/WCAG20-TECHS/">Techniques for WCAG 2.0</a><br />
+		<a href="http://www.w3.org/TR/UNDERSTANDING-WCAG20/">Understanding WCAG 2.0</a><br />
+		<a href="http://www.w3.org/TR/2012/NOTE-UNDERSTANDING-WCAG20-20120103/visual-audio-contrast-contrast.html">Contrast (Minimum)</a><br />
+		<a href="http://www.w3.org/TR/UNDERSTANDING-WCAG20/visual-audio-contrast7.html">Contrast (Enhanced)</a><br />
+		<a href="http://www.wat-c.org/">Web Accessibility Tools Consortium</a> ou suas <a href="http://www.wat-c.org/tools/index.html">ferramentas</a>
+	</td>
+</tr></table>
+</div>
+<div id="tab2" class="TP _HID">
+<div class="_TAC">
+	<div class="LBL _MR4 TXTLBL" id="lblDisease2">Tipo de disfunção</div><div id="cbDisease2"></div>
+</div>
+<div class="_TAC _MB4">
+	<div class="_TAC INLCTRL">
+		<h2>Espectro normal</h2>
+		<div id="normalImg" class="NOTE">Essa funcionalidade requer uma API que não está disponível em seu browser :(</div>
+	</div><div class="_TAC INLCTRL _ML4">
+		<h2>Espectro distorcido</h2>
+		<div id="distortedImg" class="NOTE">Essa funcionalidade requer uma API que não está disponível em seu browser :(</div>
+	</div>
+</div>
+<div class="NOTE">
+	A exibição acima é apenas uma aproximação, calculada através de uma 
+	transformação linear baseada nas matrizes de Loren Petrich, disponíveis
+	<a href="http://homepage.mac.com/lpetrich/ColorBlindnessSim/ColorBlindnessSim.html">aqui</a>.<br />
+	<br />
+	Para mais informações sobre disfunções visuais, ver:<br />
+	<a href="http://www.colblindor.com/2006/11/16/protanopia-red-green-color-blindness/">Protanopia (Deficiência do vermelho)</a><br />
+	<a href="http://www.colblindor.com/2007/04/17/deuteranopia-red-green-color-blindness/">Deuteranopia (Deficiência do verde)</a><br />
+	<a href="http://www.colblindor.com/2006/05/08/tritanopia-blue-yellow-color-blindness/">Tritanopia (Deficiência do azul)</a><br />
+	<a href="http://en.wikipedia.org/wiki/Color_blindness">Color Blindness</a><br />
+	<a href="http://brasilmedia.com/Daltonismo.html">Daltonismo</a>
+</div>
+</div>
+<div id="tab3" class="TP _HID">
+<div class="_TAC _MB4">
+	<div class="_MB4"><div class="LBL _MR4 TXTLBL" id="lblDisease3">Tipo de disfunção</div><div id="cbDisease3"></div></div>
+	<div class="LBL _MR4 TXTLBL" id="lblFile">Imagem para testar</div><div class="BTN" id="btnFile">Escolher arquivo...</div><div style="width: 0px; overflow: hidden; display: inline-block;"><input id="txtFile" type="file" /></div>
+</div>
+<div class="INLCTRL _FW BRD" style="height: 35em; overflow: auto;"><canvas id="fileImg" class="INLCTRL"></canvas></div>
+</div>
+
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

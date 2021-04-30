@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head data-nores="1">
+	<meta charset="utf-8" />
+	<script type="text/javascript">//<![CDATA[
+		"use strict"; (function () { var vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); vp.setAttribute("content", ((screen.availWidth >= 614) || (screen.availHeight >= 614)) ? "width=device-width, initial-scale=1" : "width=614"); document.head.appendChild(vp); })(); //]]>
+	</script>
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Ponto Flutuante IEEE 754</title>
+	<link rel="stylesheet" type="text/css" href="/mainnr.css" />
+	<style type="text/css">
+		.SIGN
+		{
+			background-color: #00ffff;
+			color: #000000;
+		}
+		.MANT
+		{
+			background-color: #404040;
+			color: #ffffff;
+		}
+		.DEXP
+		{
+			background-color: #0000ff;
+			color: #ffffff;
+		}
+		.BEXP
+		{
+			background-color: #ff00ff;
+			color: #000000;
+		}
+	</style>
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	var tab;
+	function main() {
+		tab = new TabHeader("Ex 1 (Dec - Bin)", $("ex1"), "Ex 2 (Dec - Bin)", $("ex2"), "Ex 3 (Bin - Dec)", $("ex3"), "Ex 4 (Bin - Dec)", $("ex4"));
+		tab.replaceControl($("tab"));
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="document" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div id="tab"></div>
+<div id="ex1" class="TP _PA4">
+<h1>Exemplo 1: Converter 25,5 em binário</h1>
+<h2>1ª Etapa: Transformar o número em algo parecido com 1,### x 2<sup>###</sup></h2>
+<p>Isso é alcançado através de divisões ou multiplicações. No caso do exemplo, divisões, pois o número é menor do que 1.</p>
+<p>Nesta etapa o sinal de negativo do número, caso exista, deve ser ignorado!</p>
+<table class="_BS8">
+	<tr><td>25,5 / 2</td><td> = 12,75</td></tr>
+	<tr><td>12,75 / 2</td><td> = 6,375</td></tr>
+	<tr><td>6,375 / 2</td><td> = 3,1875</td></tr>
+	<tr><td>3,1875 / 2</td><td> = 1,59375</td></tr>
+</table>
+<p>Ao final desta etapa, obtemos R1 = 1,59375 através de <span class="DEXP">4</span> <b>divisões</b>.</p>
+<p>Com isso, apenas encontramos outra forma de representar</p>
+<p>25,5</p>
+<p>que é</p>
+<p>1,<span class="MANT">59375</span> x 2<span class="DEXP"><sup>4</sup></span></p>
+<div class="SEP"></div>
+<h2>2ª Etapa: Calcular a mantissa baseado na parte fracionária de R1</h2>
+<p>Esse processo se dá sempre através de multiplicações sucessivas, até que o resultado seja 0, ou até um máximo de 23 multiplicações.</p>
+<p>Como R1 = 1,59375, logo, sua parte fracionária é 0,59375</p>
+<table class="_BS8">
+	<tr><td>0,59375 x 2</td><td> = <span class="MANT">1</span>,1875</td><td class="NOTE"> &nbsp; (De uma etapa para a outra, leva-se apenas a parte fracionária!)</td></tr>
+	<tr><td>0,1875 x 2</td><td> = <span class="MANT">0</span>,375</td><td></td></tr>
+	<tr><td>0,375 x 2</td><td> = <span class="MANT">0</span>,75</td><td></td></tr>
+	<tr><td>0,75 x 2</td><td> = <span class="MANT">1</span>,5</td><td></td></tr>
+	<tr><td>0,5 x 2</td><td> = <span class="MANT">1</span>,0</td><td></td></tr>
+	<tr><td>0,0 x 2</td><td> = <span class="MANT">0</span>,0</td><td class="NOTE">(Acabou!)</td></tr></table>
+<p>Mantissa calculada = <span class="MANT">100110</span></p>
+<p>Como a quantidade de bits da mantissa ficou inferior à 23, completa-se o final com 0's até formar 23 dígitos.</p>
+<p>Mantissa final = <span class="MANT">10011000000000000000000</span></p>
+<div class="SEP"></div>
+<h2>3ª Etapa: Coletar as informações necessárias para criar a representação binária</h2>
+<p>- Sinal</p>
+<p>Positivo = <span class="SIGN">0</span> <span class="NOTE">(Se fosse negativo seria 1)</span></p>
+<p>- Expoente</p>
+<p><span class="DEXP">4</span> <span class="NOTE">(Calculado na 1ª etapa)</span></p>
+<p>Porém, devido ao padrão estabelecido pela IEEE para números de ponto flutuante, esse expoente deve ser acrescido de 127. Assim:</p>
+<p><span class="DEXP">4</span> + 127 = 131 = <span class="BEXP">10000011</span></p>
+<p>- Mantissa</p>
+<p><span class="MANT">10011000000000000000000</span> <span class="NOTE">(Calculada na 2ª etapa)</span></p>
+<div class="SEP"></div>
+<h2>4ª Etapa: Montar a representação binária</h2>
+<p>Basta juntar o sinal, o expoente e a mantissa coletados na 3ª etapa, para montar o valor de 32 bits que representa o valor inicial.</p>
+<p>Assim, a representação final é:</p>
+<p><span class="SIGN">0</span><span class="BEXP">10000011</span><span class="MANT">10011000000000000000000</span></p>
+<p>Ou 01000001110011000000000000000000 <span class="NOTE">(Sem a formatação de cores)</span></p>
+	
+</div>
+<div id="ex2" class="TP _HID _PA4">
+<h1>Exemplo 2: Converter 0,203125 em binário</h1>
+<h2>1ª Etapa: Transformar o número em algo parecido com 1,### x 2<sup>###</sup></h2>
+<p>Isso é alcançado através de divisões ou multiplicações. No caso do exemplo, multipicações, pois o número é menor do que 1.</p>
+<p>Nesta etapa o sinal de negativo do número, caso exista, deve ser ignorado!</p>
+<table class="_BS8">
+	<tr><td>0,203125 x 2</td><td> = 0,40625</td></tr>
+	<tr><td>0,40625 x 2</td><td> = 0,8125</td></tr>
+	<tr><td>0,8125 x 2</td><td> = 1,625</td></tr>
+</table>
+<p>Ao final desta etapa, obtemos R1 = 1,625 através de <span class="DEXP">3</span> <b>multiplicações</b>.</p>
+<p>Com isso, apenas encontramos outra forma de representar</p>
+<p>0,203125</p>
+<p>que é</p>
+<p>1,<span class="MANT">625</span> x 2 <span class="DEXP"><sup>-3</sup></span> <span class="NOTE">(Repare que o expoente ficou negativo, pois o número era menor do que 1!)</span></p>
+<div class="SEP"></div>
+<h2>2ª Etapa: Calcular a mantissa baseado na parte fracionária de R1</h2>
+<p>Esse processo se dá sempre através de multiplicações sucessivas, até que o resultado seja 0, ou até um máximo de 23 multiplicações.</p>
+<p>Como R1 = 1,625, logo, sua parte fracionária é 0,625</p>
+<table class="_BS8">
+	<tr><td>0,625 x 2</td><td> = <span class="MANT">1</span>,25</td><td class="NOTE"> &nbsp; (De uma etapa para a outra, leva-se apenas a parte fracionária!)</td></tr>
+	<tr><td>0,25 x 2</td><td> = <span class="MANT">0</span>,5</td><td></td></tr>
+	<tr><td>0,5 x 2</td><td> = <span class="MANT">1</span>,0</td><td></td></tr>
+	<tr><td>0,0 x 2</td><td> = <span class="MANT">0</span>,0</td><td class="NOTE">(Acabou!)</td></tr>
+</table>
+<p>Mantissa calculada = <span class="MANT">1010</span></p>
+<p>Como a quantidade de bits da mantissa ficou inferior à 23, completa-se o final com 0's até formar 23 dígitos.</p>
+<p>Mantissa final = <span class="MANT">10100000000000000000000</span></p>
+<div class="SEP"></div>
+<h2>3ª Etapa: Coletar as informações necessárias para criar a representação binária</h2>
+<p>- Sinal</p>
+<p>Positivo = <span class="SIGN">0</span> <span class="NOTE">(Se fosse negativo seria 1)</span></p>
+<p>- Expoente</p>
+<p><span class="DEXP">-3</span> <span class="NOTE">(Calculado na 1ª etapa)</span></p>
+<p>Porém, devido ao padrão estabelecido pela IEEE para números de ponto flutuante, esse expoente deve ser acrescido de 127. Assim:</p>
+<p><span class="DEXP">-3</span> + 127 = 124 = <span class="BEXP">01111100</span></p>
+<p>- Mantissa</p>
+<p><span class="MANT">10100000000000000000000</span> <span class="NOTE">(Calculada na 2ª etapa)</span></p>
+<div class="SEP"></div>
+<h2>4ª Etapa: Montar a representação binária</h2>
+<p>Basta juntar o sinal, o expoente e a mantissa coletados na 3ª etapa, para montar o valor de 32 bits que representa o valor inicial.</p>
+<p>Assim, a representação final é:</p>
+<p><span class="SIGN">0</span><span class="BEXP">01111100</span><span class="MANT">10100000000000000000000</span></p>
+<p>Ou 00111110010100000000000000000000 <span class="NOTE">(Sem a formatação de cores)</span></p>
+</div>
+<div id="ex3" class="TP _HID _PA4">
+<h1>Exemplo 3: Converter 11000001011010000000000000000000 em decimal</h1>
+<h2>1ª Etapa: Extrair os campos</h2>
+<p>Para isso, basta dividir o número binário em três partes: sinal, expoente e mantissa.</p>
+<p>Assim, dividindo o número 11000001011010000000000000000000 nas três partes, temos:</p>
+<p><span class="SIGN">1</span><span class="BEXP">10000010</span><span class="MANT">11010000000000000000000</span></p>
+<p>- Sinal</p>
+<p><span class="SIGN">1</span> <span class="NOTE">(1 significa negativo, se fosse 0, seria positivo)</span></p>
+<p>- Expoente</p>
+<p><span class="BEXP">10000010</span> <span class="comment">(130 em decimal)</span></p>
+<p>- Mantissa</p>
+<p><span class="MANT">11010000000000000000000</span></p>
+<div class="SEP"></div>
+<h2>2ª Etapa: Calcular o expoente real</h2>
+<p>O expoente encontrado na 1ª etapa, devido ao padrão estabelecido pela IEEE para números de ponto flutuante, foi acrescido de 127 durante a conversão original, como foi feito nos outros exemplos de conversão de decimal para binário. Por isso, deve-se remover 127 do expoente encontrado para obter o expoente real.</p>
+<p>Assim:</p>
+<p>130 - 127 = <span class="DEXP">3</span></p>
+<p>Expoente real = <span class="DEXP">3</span></p>
+<div class="SEP"></div>
+<h2>3ª Etapa: Calcular o valor decimal da mantissa</h2>
+<p>Basta multiplicar cada bit da mantissa pela potência de 2 correnpondente àquela posição, e somar todos os resultados.</p>
+<p>Esse método é análogo a alguns métodos de conversão de números binários (inteiros) para decimal, com uma diferença: aqui todas as potências são negativas, pois está se calculando uma fração e não um número inteiro.</p>
+<p>O primeiro bit deve ser multiplicado por 2<sup>-1</sup>, o segundo por 2<sup>-2</sup>, o terceiro por 2<sup>-3</sup>, e assim por diante.</p>
+<p>Lembrando:</p>
+<p>2<sup>-1</sup> = 1/2<sup>1</sup> = 1/2 = 0,5</p>
+<p>2<sup>-2</sup> = 1/2<sup>2</sup> = 1/4 = 0,25</p>
+<p>2<sup>-3</sup> = 1/2<sup>3</sup> = 1/8 = 0,125</p>
+<p>...</p>
+<p>&nbsp;</p>
+<p>Multiplicando:</p>
+<table class="_BS8">
+	<tr><td><span class="MANT">1</span> x 2<sup>-1</sup></td><td> = 0,5</td><td></td></tr>
+	<tr><td><span class="MANT">1</span> x 2<sup>-2</sup></td><td> = 0,25</td><td></td></tr>
+	<tr><td><span class="MANT">0</span> x 2<sup>-3</sup></td><td> = 0,0</td><td></td></tr>
+	<tr><td><span class="MANT">1</span> x 2<sup>-4</sup></td><td> = 0,0625</td><td></td></tr>
+	<tr><td><span class="MANT">0</span> x 2<sup>-5</sup></td><td> = 0,0</td><td class="NOTE">&nbsp; (Daqui em diante tem-se apenas 0's, logo não é necessário continuar)</td></tr></table>
+<p>Somando todos os resultados diferentes de 0, tem-se:</p>
+<p>0,5 + 0,25 + 0,0625 = <span class="MANT">0,8125</span></p>
+<div class="SEP"></div>
+<h2>4ª Etapa: Montar a representação decimal</h2>
+<p>Basta juntar o sinal, o expoente e a mantissa, para montar o valor decimal na forma 1,### x 2<sup>###</sup>.</p>
+<p>Assim, a representação final é:</p>
+<p><span class="SIGN">-</span>1,<span class="MANT">8125</span> x 2<sup><span class="DEXP">3</span></sup></p>
+<p>Ou -1,8125 x 2<sup>3</sup> <span class="NOTE">(Sem a formatação de cores)</span></p>
+<p>Ainda, pode-se calcular a potência e a multiplicação...</p>
+<p>-1,8125 x 2<sup>3</sup> = -1,8125 x 8 = -14,5</p>
+</div>
+<div id="ex4" class="TP _HID _PA4">
+<h1>Exemplo 4: Converter 01000010001101000000000000000000 em decimal</h1>
+<h2>1ª Etapa: Extrair os campos</h2>
+<p>Para isso, basta dividir o número binário em três partes: sinal, expoente e mantissa.</p>
+<p>Assim, dividindo o número 01000010001101000000000000000000 nas três partes, temos:</p>
+<p><span class="SIGN">0</span><span class="BEXP">10000100</span><span class="MANT">01101000000000000000000</span></p>
+<p>- Sinal</p>
+<p><span class="sig">0</span> <span class="NOTE">(0 significa positivo, se fosse 1, seria negativo)</span></p>
+<p>- Expoente</p>
+<p><span class="BEXP">10000100</span> <span class="NOTE">(132 em decimal)</span></p>
+<p>- Mantissa</p>
+<p><span class="MANT">01101000000000000000000</span></p>
+<div class="SEP"></div>
+<h2>2ª Etapa: Calcular o expoente real</h2>
+<p>O expoente encontrado na 1ª etapa, devido ao padrão estabelecido pela IEEE para números de ponto flutuante, foi acrescido de 127 durante a conversão original, como foi feito nos outros exemplos de conversão de decimal para binário. Por isso, deve-se remover 127 do expoente encontrado para obter o expoente real.</p>
+<p>Assim:</p>
+<p>132 - 127 = <span class="DEXP">5</span></p>
+<p>Expoente real = <span class="DEXP">5</span></p>
+<div class="SEP"></div>
+<h2>3ª Etapa: Calcular o valor decimal da mantissa</h2>
+<p>Basta multiplicar cada bit da mantissa pela potência de 2 correnpondente àquela posição, e somar todos os resultados.</p>
+<p>Esse método é análogo a alguns métodos de conversão de números binários (inteiros) para decimal, com uma diferença: aqui todas as potências são negativas, pois está se calculando uma fração e não um número inteiro.</p>
+<p>O primeiro bit deve ser multiplicado por 2<sup>-1</sup>, o segundo por 2<sup>-2</sup>, o terceiro por 2<sup>-3</sup>, e assim por diante.</p>
+<p>Lembrando:</p>
+<p>2<sup>-1</sup> = 1/2<sup>1</sup> = 1/2 = 0,5</p>
+<p>2<sup>-2</sup> = 1/2<sup>2</sup> = 1/4 = 0,25</p>
+<p>2<sup>-3</sup> = 1/2<sup>3</sup> = 1/8 = 0,125</p>
+<p>...</p>
+<p>&nbsp;</p>
+<p>Multiplicando:</p>
+<table class="_BS8">
+	<tr><td><span class="MANT">0</span> x 2<sup>-1</sup></td><td> = 0,0</td><td></td></tr>
+	<tr><td><span class="MANT">1</span> x 2<sup>-2</sup></td><td> = 0,25</td><td></td></tr>
+	<tr><td><span class="MANT">1</span> x 2<sup>-3</sup></td><td> = 0,125</td><td></td></tr>
+	<tr><td><span class="MANT">0</span> x 2<sup>-4</sup></td><td> = 0,0</td><td></td></tr>
+	<tr><td><span class="MANT">1</span> x 2<sup>-5</sup></td><td> = 0,03125</td><td></td></tr>
+	<tr><td><span class="MANT">0</span> x 2<sup>-6</sup></td><td> = 0,0</td><td class="NOTE">&nbsp; (Daqui em diante tem-se apenas 0's, logo não é necessário continuar)</td></tr></table>
+<p>Somando todos os resultados diferentes de 0, tem-se:</p>
+<p>0,25 + 0,125 + 0,03125 = <span class="MANT">0,40625</span></p>
+<div class="SEP"></div>
+<h2>4ª Etapa: Montar a representação decimal</h2>
+<p>Basta juntar o sinal, o expoente e a mantissa, para montar o valor decimal na forma 1,### x 2<sup>###</sup>.</p>
+<p>Assim, a representação final é:</p>
+<p><span class="SIGN">+</span>1,<span class="MANT">40625</span> x 2<sup><span class="DEXP">5</span></sup></p>
+<p>Ou +1,40625 x 2<sup>5</sup> <span class="NOTE">(Sem a formatação de cores)</span></p>
+<p>Ainda, pode-se calcular a potência e a multiplicação...</p>
+<p>+1,40625 x 2<sup>5</sup> = 1,40625 x 32 = 45,0</p>
+</div>
+<div class="NOTE _PA4 _TAC">Existem outros métodos para realizar essa conversão, e você está livre para pesquisá-los e utilizá-los, mesmo nas provas! ;)</div>
+
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>

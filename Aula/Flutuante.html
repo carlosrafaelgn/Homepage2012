@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-br">
+<head data-nores="1">
+	<meta charset="utf-8" />
+	<script type="text/javascript">//<![CDATA[
+		"use strict"; (function () { var vp = document.createElement("meta"); vp.setAttribute("name", "viewport"); vp.setAttribute("content", ((screen.availWidth >= 614) || (screen.availHeight >= 614)) ? "width=device-width, initial-scale=1" : "width=614"); document.head.appendChild(vp); })(); //]]>
+	</script>
+	<link rel="Shortcut Icon" href="/favicon.ico" />
+	<title>Ponto Flutuante IEEE 754</title>
+	<link rel="stylesheet" type="text/css" href="/mainnr.css" />
+	<style type="text/css">
+		.SIGN
+		{
+			background-color: #00ffff;
+			color: #000000;
+		}
+		.MANT
+		{
+			background-color: #404040;
+			color: #ffffff;
+		}
+		.DEXP
+		{
+			background-color: #0000ff;
+			color: #ffffff;
+		}
+		.BEXP
+		{
+			background-color: #ff00ff;
+			color: #000000;
+		}
+	</style>
+	<script type="text/javascript" charset="utf-8" src="/main.js"></script>
+	<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+	var txtDec, txtBin, txtHex, txtFieldSign, txtFieldMant, txtFieldExp, lblField, txtFieldBSign, txtFieldBExp, txtFieldBMant;
+	function showHelp() {
+		return BasicLayout.goTo("/Aula/Flutuante2.html", true);
+	}
+	function validateInt(i) {
+		//se o expoente é 0, não pode ter mantissa! (denormalized)
+		if (!(i & (0xFF << 23)) && (i & 0x007fffff)) {
+			Popup.showError("O número não está em um formato normalizado!");
+			return false;
+		}
+		return true;
+	}
+	function validateFloat(f) {
+		if (!f || isNaN(f) || !isFinite(f)) return true;
+		f = Math.abs(f);
+		if (f > 3.402823466e+38 || f < 1.175494351e-38) {
+			Popup.showError("O número não está dentro dos limites válidos, entre ± 1.175494351e-38 e ± 3.402823466e+38!");
+			return false;
+		}
+		return true;
+	}
+	function floatToInt(f) {
+		if (isNaN(f)) return 0x7fc00000;
+		if (!isFinite(f)) return ((f < 0) ? 0xff800000 : 0x7f800000);
+		if (!f) return 0;
+		var sign = 0, exp = 0, mant = 0, i;
+		if (f < 0) {
+			sign = 0x100000000; //0x80000000 << 1 (para poder fazer * 0.5 lá em baixo)
+			f = -f;
+		}
+		while (f >= 2) {
+			f *= 0.5;
+			exp++;
+		}
+		while (f < 1) {
+			f *= 2;
+			exp--;
+		}
+		f -= 1;
+		for (i = 0; i < 23; i++) {
+			mant <<= 1;
+			f *= 2;
+			if (f >= 1) {
+				mant |= 1;
+				f -= 1;
+			}
+		}
+		//não pode utilizar operações binárias, pois senão pode acabar convertendo para 32bit, e
+		//dá sérios problemas com números negativos!
+		sign += (((exp + 127) << 23) | mant) * 2;
+		return (sign * 0.5);// (sign | ((exp + 127) << 23) | mant);
+	}
+	function intToFloat(i) {
+		if ((i & 0x7f800000) === 0x7f800000) return ((i === 0xff800000) ? Number.NEGATIVE_INFINITY : ((i === 0x7f800000) ? Number.POSITIVE_INFINITY : Number.NaN));
+		if (!i) return 0;
+		var sign = ((i & 0x80000000) ? -1 : 1), exp = ((i >>> 23) & 0xFF) - 127, mant = (i & 0x007fffff), m = 0.5;
+		i = 0;
+		while (mant) {
+			if ((mant & 0x00400000)) i += m;
+			mant = ((mant << 1) & 0x007fffff);
+			m *= 0.5;
+		}
+		i += 1;
+		while (exp < 0) {
+			i *= 0.5;
+			exp++;
+		}
+		while (exp > 0) {
+			i *= 2;
+			exp--;
+		}
+		return (sign * i);
+	}
+	function pad0R(s, len) {
+		return ((s.length === len) ? s : (s + "00000000000000000000000000000000").substr(0, len));
+	}
+	function pad0L(s, len) {
+		if (s.length === len) return s;
+		s = "00000000000000000000000000000000" + s;
+		return s.substr(s.length - len);
+	}
+	function intToFloatString(i) {
+		return ((i === 0x80000000) ? "-0" : intToFloat(i).toString());
+	}
+	function refreshAll(i) {
+		txtDec.value = intToFloatString(i);
+		var b = pad0L(i.toString(2), 32), m;
+		txtBin.value = b;
+		txtFieldBSign.value = b.substr(0, 1);
+		txtFieldBExp.value = b.substr(1, 8);
+		txtFieldBMant.value = b.substr(9);
+		txtHex.value = pad0L(i.toString(16), 8);
+		txtFieldSign.value = ((i & 0x80000000) ? "-" : "+");
+		if ((i & 0x7f800000) === 0x7f800000) {
+			txtFieldMant.value = "---";
+			txtFieldExp.value = "---";
+			lblField.innerHTML = "---";
+		} else {
+			if (i === 0x80000000) i = 0;
+			txtFieldExp.value = (((i >>> 23) & 0xFF) - 127).toString();
+			//mantém apenas a mantissa
+			i &= 0x007fffff;
+			if (i) {
+				i = intToFloat(0x3f800000 | i); //coloca um expoente de 127 (deixando o número com a cara 1.xxx)
+				b = i.toString();
+				i = b.indexOf(".");
+				txtFieldMant.value = ((i < 0) ? "???" : b.substr(i + 1));
+			} else {
+				txtFieldMant.value = "0";
+			}
+			lblField.innerHTML = txtFieldSign.value + "1." + txtFieldMant.value + " x 2 <sup>" + txtFieldExp.value + "</sup>";
+		}
+		return true;
+	}
+	function convDec() {
+		var f, s = txtDec.value;
+		if (s.length < 1) s = "0";
+		else s = s.replace(",", ".");
+		s = s.toLowerCase();
+		if (s === "nan") {
+			f = Number.NaN;
+		} else if (s === "infinity") {
+			f = Number.POSITIVE_INFINITY;
+		} else if (s === "-infinity") {
+			f = Number.NEGATIVE_INFINITY;
+		} else {
+			f = parseFloat(s);
+			if (isNaN(f)) {
+				Popup.showError("Valor decimal inválido!");
+				return true;
+			}
+		}
+		if (!validateFloat(f)) return true;
+		return refreshAll((!f && s.substr(0, 1) === "-") ? 0x80000000 : floatToInt(f));
+	}
+	function convBin() {
+		var i;
+		if (txtBin.value.length > 32) {
+			Popup.showError("O valor binário deve conter apenas 32 bits!");
+			return true;
+		}
+		i = parseInt(pad0R(txtBin.value, 32), 2);
+		if (isNaN(i) || i < 0) {
+			Popup.showError("Valor binário inválido!");
+			return true;
+		}
+		if (!validateInt(i)) return true;
+		return refreshAll(i);
+	}
+	function convHex() {
+		var i;
+		if (txtHex.value.length > 32) {
+			Popup.showError("O valor hexadecimal deve conter apenas 8 dígitos!");
+			return true;
+		}
+		i = parseInt(pad0R(txtHex.value, 8), 16);
+		if (isNaN(i) || i < 0) {
+			Popup.showError("Valor hexadecimal inválido!");
+			return true;
+		}
+		if (!validateInt(i)) return true;
+		return refreshAll(i);
+	}
+	function convField() {
+		var s, m, e;
+		switch (txtFieldSign.value) {
+			case "":
+			case "+":
+				s = 0;
+				break;
+			case "-":
+				s = 0x100000000; //0x80000000 << 1 (para poder fazer * 0.5 lá em baixo)
+				break;
+			default:
+				Popup.showError("Sinal inválido!");
+				return true;
+		}
+		m = parseFloat("1." + txtFieldMant.value);
+		if (isNaN(m)) {
+			Popup.showError("Mantissa inválida!");
+			return true;
+		}
+		e = parseInt(txtFieldExp.value);
+		if (isNaN(e)) {
+			Popup.showError("Expoente inválido!");
+			return true;
+		}
+		if (e < -127 || e > 127) {
+			Popup.showError("O expoente deve estar entre -127 e 127, inclusive!");
+			return true;
+		}
+		if (e === -127 && m !== 1) {
+			Popup.showError("O número não está em um formato normalizado!");
+			return true;
+		}
+		//não pode utilizar operações binárias, pois senão pode acabar convertendo para 32bit, e
+		//dá sérios problemas com números negativos!
+		s += (((e + 127) << 23) | (floatToInt(m) & 0x007fffff)) * 2;
+		return refreshAll(s * 0.5);
+	}
+	function convFieldB() {
+		var i;
+		if (txtFieldBSign.value.length > 1) {
+			Popup.showError("O sinal deve conter apenas 1 bit!");
+			return true;
+		}
+		if (txtFieldBExp.value.length > 8) {
+			Popup.showError("O expoente deve conter apenas 8 bits!");
+			return true;
+		}
+		if (txtFieldBMant.value.length > 23) {
+			Popup.showError("A mantissa deve conter apenas 23 bits!");
+			return true;
+		}
+		i = parseInt(pad0R(txtFieldBSign.value, 1) + pad0R(txtFieldBExp.value, 8) + pad0R(txtFieldBMant.value, 23), 2);
+		if (isNaN(i) || i < 0) {
+			Popup.showError("Valor binário inválido!");
+			return true;
+		}
+		if (!validateInt(i)) return true;
+		return refreshAll(i);
+	}
+	function main() {
+		txtDec = $("txtDec");
+		txtBin = $("txtBin");
+		txtHex = $("txtHex");
+		txtFieldSign = $("txtFieldSign");
+		txtFieldMant = $("txtFieldMant");
+		txtFieldExp = $("txtFieldExp");
+		lblField = $("lblField");
+		txtFieldBSign = $("txtFieldBSign");
+		txtFieldBExp = $("txtFieldBExp");
+		txtFieldBMant = $("txtFieldBMant");
+		attachMouse($("btnConvDec"), "click", convDec);
+		attachMouse($("btnConvBin"), "click", convBin);
+		attachMouse($("btnConvHex"), "click", convHex);
+		attachMouse($("btnConvField"), "click", convField);
+		attachMouse($("btnConvFieldB"), "click", convFieldB);
+		attachMouse($("btnHelp"), "click", showHelp);
+		return true;
+	}
+	//]]>
+	</script>
+</head>
+<body>
+<div class="MainContainer" role="application" id="_B0"><div class="PageCaption" role="banner" id="_B1"></div><div class="InnerContainer" role="main" id="_B2"><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.header(true); //]]></script>
+
+<div class="TLB" style="text-align: right;" role="toolbar">
+	<div id="btnHelp" class="BTN BTNTLB">Preciso de ajuda!</div>
+</div>
+	<h1>Representação decimal</h1>
+	<div id="btnConvDec" class="BTN">Converter</div>
+	<input id="txtDec" type="text" value="0" style="background-color: #ffccff; width: 25em" title="Representação decimal" />
+
+	<h1>Representação binária</h1>
+	<div id="btnConvBin" class="BTN">Converter</div>
+	<input id="txtBin" type="text" value="00000000000000000000000000000000" style="background-color: #ffff99; width: 25em" title="Representação binária" />
+
+	<h1>Representação hexadecimal</h1>
+	<div id="btnConvHex" class="BTN">Converter</div>
+	<input id="txtHex" type="text" value="00000000" style="background-color: #ccff99; width: 25em" title="Representação hexadecimal" />
+
+	<h1>Representação em campos</h1>
+	<div id="btnConvField" class="BTN">Converter</div>
+	<input id="txtFieldSign" type="text" value="+" class="SIGN" style="width: 2em" title="Sinal" />
+	<div class="LBL"> 1. </div>
+	<input id="txtFieldMant" type="text" value="0" class="MANT" style="width: 16em" title="Mantissa" />
+	<div class="LBL"> x 2 ^ </div>
+	<input id="txtFieldExp" type="text" value="-127" class="DEXP" style="width: 5em" title="Expoente decimal" />
+	<p class="LBLBLK _MT4">Leitura direta: <span id="lblField">+1.0 x 2 <sup>-127</sup></span></p>
+
+	<h1>Relação entre a representação binária e os campos</h1>
+	<div id="btnConvFieldB" class="BTN">Converter</div>
+	<input id="txtFieldBSign" type="text" value="0" class="SIGN" style="width: 2em" title="Sinal" />
+	<input id="txtFieldBExp" type="text" value="00000000" class="BEXP" style="width: 7em" title="Expoente binário" />
+	<input id="txtFieldBMant" type="text" value="00000000000000000000000" class="MANT" style="width: 16em" title="Mantissa" />
+	<p class="LBLBLK _MT4">Legenda: <span class="TINP SIGN" title="Sinal">Sinal</span> <span class="TINP BEXP" title="Expoente binário">Expoente</span> <span class="TINP MANT" title="Mantissa">Mantissa</span></p>
+
+	<h1>Comentários gerais</h1>
+	<p class="LBLBLK">O valor do campo <span class="TINP BEXP" title="Expoente binário">&nbsp;&nbsp;</span> é o valor do campo <span class="TINP DEXP" title="Expoente decimal">&nbsp;&nbsp;</span> , acrescido de 127!</p>
+	<p class="LBLBLK">Colocar 11111111 no campo <span class="TINP BEXP" title="Expoente binário">&nbsp;&nbsp;</span> produz resultados inusitados...</p>
+	<p class="LBLBLK">Colocar 00000000 no campo <span class="TINP BEXP" title="Expoente binário">&nbsp;&nbsp;</span> só é possível se o campo <span class="TINP MANT" title="Mantissa">&nbsp;&nbsp;</span> for 0, caso contrário, o número não estará normalizado.</p>
+	<p class="LBLBLK">Cuidado: Podem aparecer algumas pequenas diferenças no resultado, devido a imprecisões do processador!</p>
+
+</div><div role="contentinfo" id="_B3"></div></div><script type="text/javascript">//<![CDATA[
+"use strict"; BasicLayout.footer(); //]]></script>
+</body>
+</html>
